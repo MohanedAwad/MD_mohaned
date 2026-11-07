@@ -1,0 +1,26 @@
+{
+  "name": "md-viewer-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "6.3.2",
+    "@codemirror/search": "6.5.10",
+    "@codemirror/state": "6.5.2",
+    "@codemirror/theme-one-dark": "6.1.2",
+    "@codemirror/view": "6.36.4",
+    "codemirror": "6.0.1",
+    "dompurify": "3.2.4",
+    "highlight.js": "11.11.1",
+    "katex": "0.16.21",
+    "marked": "15.0.7",
+    "marked-highlight": "2.2.1",
+    "marked-katex-extension": "5.1.4",
+    "mermaid": "11.4.1"
+  },
+  "devDependencies": {
+    "vite": "6.2.0"
+  }
+}

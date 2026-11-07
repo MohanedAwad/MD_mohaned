@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="./">
+  <title>MD Viewer</title>
+  <script type="module" src="./src/main.js"></script>
+</head>
+<body>
+  <header id="toolbar">
+    <button id="btn-outline" title="Outline (⇧⌘O)">Outline</button>
+    <button id="btn-editor" title="Editor (⌘E)">Editor</button>
+    <button id="btn-sync" title="Sync scroll between editor and preview">Sync scroll</button>
+    <div id="title"></div>
+    <button id="btn-find" title="Find (⌘F)">Find</button>
+    <button id="btn-copy" title="Copy markdown (⇧⌘C)">Copy</button>
+    <button id="btn-pdf" title="Export PDF (⌘P)">PDF</button>
+    <button id="btn-theme" title="Theme: Auto / Light / Dark">Auto</button>
+    <button id="btn-open" title="Open (⌘O)">Open</button>
+  </header>
+  <div id="banner" hidden>
+    <span>The file changed on disk while you were editing.</span>
+    <button id="banner-reload">Load disk version</button>
+    <button id="banner-keep">Keep mine</button>
+  </div>
+  <div id="main">
+    <nav id="outline"><div id="outline-list"></div></nav>
+    <section id="editor-pane" hidden></section>
+    <section id="preview">
+      <div id="search" hidden>
+        <input id="search-input" type="search" placeholder="Find" spellcheck="false" dir="auto">
+        <span id="search-count"></span>
+        <button id="search-prev" title="Previous (⇧↩)">↑</button>
+        <button id="search-next" title="Next (↩)">↓</button>
+        <button id="search-close" title="Close (Esc)">✕</button>
+      </div>
+      <article id="doc" class="md"></article>
+      <div id="empty" hidden>
+        <h1>MD Viewer</h1>
+        <p>Open a Markdown file with <kbd>⌘O</kbd>, drop one on this window, or press <kbd>⌥⇧P</kbd> in Zed.</p>
+        <p dir="rtl">افتح ملف Markdown بالضغط على <kbd>⌘O</kbd> أو اسحبه إلى هذه النافذة.</p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

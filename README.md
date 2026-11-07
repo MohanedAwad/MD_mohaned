@@ -17,9 +17,10 @@ Add this task to `~/.config/zed/tasks.json`:
 ```json
 {
   "label": "Markdown: Open in MD Viewer",
-  "command": "open -g \"$(\"$HOME/Applications/MD Viewer.app/Contents/MacOS/MDViewer\" --zed-url \"$ZED_FILE\" \"$ZED_ROW\")\"",
+  "command": "/Users/<you>/.local/bin/mdviewer",
+  "args": ["--zed", "$ZED_FILE", "$ZED_ROW"],
   "reveal": "never",
-  "hide": "always"
+  "hide": "on_success"
 }
 ```
 
@@ -32,7 +33,7 @@ and bind it in `~/.config/zed/keymap.json`:
 }
 ```
 
-`⌥⇧P` then shows the file beside Zed, scrolled to the cursor line, without taking focus. The viewer re-renders on every save and comes forward whenever Zed does (menu **Zed → Come Forward With Zed**).
+`⌥⇧P` then shows the file beside Zed, scrolled to the cursor line, without taking focus. The viewer re-renders on every save and comes forward whenever Zed does (menu **Zed → Come Forward With Zed**). Each request is logged to `~/Library/Logs/MD Viewer/zed.log`.
 
 ## Keys
 

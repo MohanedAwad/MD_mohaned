@@ -86,6 +86,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
         guard url.host == "open", let path = value("path"), !path.isEmpty else { return }
+        ZedCompanion.log("app received \(path) line=\(value("line") ?? "-")")
         open(URL(fileURLWithPath: path), line: Int(value("line") ?? "") ?? 0, besideZed: value("beside") == "zed")
     }
 

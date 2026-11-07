@@ -9,4 +9,7 @@ osascript -e 'quit app "MD Viewer"' 2>/dev/null || true
 rm -rf "$DEST"
 cp -R "build/MD Viewer.app" "$DEST"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST"
-echo "Installed $DEST"
+# Space-free command for the Zed task.
+mkdir -p "$HOME/.local/bin"
+ln -sf "$DEST/Contents/MacOS/MDViewer" "$HOME/.local/bin/mdviewer"
+echo "Installed $DEST (command: ~/.local/bin/mdviewer)"

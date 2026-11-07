@@ -4,7 +4,21 @@ import Cocoa
 enum ZedCompanion {
     static let urlScheme = "mdviewer"
 
-    /// Called by the Zed task: `MDViewer --zed-url <file> [row]` prints the URL for `open -g`.
+    /// ~/Library/Logs/MD Viewer/zed.log: one line per Zed request, to tell "task never ran" from "app ignored it".
+    static func log(_ line: String) {
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/MD Viewer")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("zed.log")
+        let entry = "\(ISO8601DateFormatter().string(from: Date())) \(line)\n"
+        if let h = try? FileHandle(forWritingTo: file) {
+            h.seekToEndOfFile()
+            h.write(entry.data(using: .utf8)!)
+            try? h.close()
+        } else {
+            try? entry.write(to: file, atomically: true, encoding: .utf8)
+        }
+    }
+
     static func url(file: String, row: String?) -> URL {
         var c = URLComponents()
         c.scheme = urlScheme

@@ -1,0 +1,62 @@
+/* Colour tokens. JS sets data-theme to "light" or "dark" on <html>. */
+:root {
+  --bg: #ffffff;
+  --panel: #f6f7fb;
+  --panel-2: #eef0f6;
+  --border: #e2e5ee;
+  --text: #24292f;
+  --muted: #5f6b7a;
+  --heading: #0b1220;
+  --accent: #2563eb;
+  --accent-2: #7c3aed;
+  --accent-soft: #e8efff;
+  --code-bg: #f5f6fa;
+  --row: #fafbfd;
+  --mark: #fde68a;
+  --mark-current: #f59e0b;
+  --flash: rgb(37 99 235 / .12);
+  --shadow: 0 10px 30px rgb(15 23 42 / .12);
+
+  --note: #2563eb;      --note-bg: #eef4ff;
+  --tip: #059669;       --tip-bg: #ecfdf5;
+  --important: #7c3aed; --important-bg: #f5f0ff;
+  --warning: #b45309;   --warning-bg: #fff8eb;
+  --caution: #dc2626;   --caution-bg: #fef2f2;
+
+  --hl-kw: #cf222e; --hl-str: #0a3069; --hl-com: #6e7781; --hl-num: #0550ae;
+  --hl-fn: #8250df; --hl-var: #953800; --hl-type: #116329;
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Arabic", "Geeza Pro", "Segoe UI", sans-serif;
+  /* No Menlo: its monospaced Arabic glyphs look letter-spaced; SF Arabic joins properly. */
+  --mono: ui-monospace, "SF Mono", "SF Arabic", "Geeza Pro", monospace;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f1117;
+  --panel: #151922;
+  --panel-2: #1c212c;
+  --border: #262c38;
+  --text: #d5dae3;
+  --muted: #8a94a6;
+  --heading: #f4f6fb;
+  --accent: #6ea8fe;
+  --accent-2: #b197fc;
+  --accent-soft: #1a2640;
+  --code-bg: #161b24;
+  --row: #131821;
+  --mark: #6b5a12;
+  --mark-current: #c58a1c;
+  --flash: rgb(110 168 254 / .14);
+  --shadow: 0 10px 30px rgb(0 0 0 / .45);
+
+  --note: #6ea8fe;      --note-bg: #142035;
+  --tip: #34d399;       --tip-bg: #10251f;
+  --important: #b197fc; --important-bg: #1f1934;
+  --warning: #fbbf24;   --warning-bg: #2a2110;
+  --caution: #f87171;   --caution-bg: #2c1616;
+
+  --hl-kw: #ff7b72; --hl-str: #a5d6ff; --hl-com: #8b949e; --hl-num: #79c0ff;
+  --hl-fn: #d2a8ff; --hl-var: #ffa657; --hl-type: #7ee787;
+  color-scheme: dark;
+}

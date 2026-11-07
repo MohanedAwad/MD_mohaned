@@ -41,10 +41,9 @@ export function createEditor(parent, text, { dark, onChange, onScroll }) {
       }),
     ],
   });
-  view.scrollDOM.addEventListener('scroll', () => onScroll(view.scrollDOM));
+  view.scrollDOM.addEventListener('scroll', () => onScroll());
 
   return {
-    scroller: view.scrollDOM,
     setDark(d) { view.dispatch({ effects: theme.reconfigure(d ? oneDark : []) }); },
     setText(t) {
       if (t === view.state.doc.toString()) return;
@@ -52,8 +51,17 @@ export function createEditor(parent, text, { dark, onChange, onScroll }) {
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: t } });
       silent = false;
     },
-    hasFocus() { return view.hasFocus; },
-    focus() { view.focus(); },
-    openSearch() { openSearchPanel(view); },
+    hasFocus: () => view.hasFocus,
+    focus: () => view.focus(),
+    openSearch: () => openSearchPanel(view),
+    /** 1-based line at the top of the editor viewport. */
+    topLine() {
+      const block = view.lineBlockAtHeight(view.scrollDOM.getBoundingClientRect().top - view.documentTop);
+      return view.state.doc.lineAt(block.from).number;
+    },
+    scrollToLine(n) {
+      const line = view.state.doc.line(Math.min(Math.max(1, n), view.state.doc.lines));
+      view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'start' }) });
+    },
   };
 }

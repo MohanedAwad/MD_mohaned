@@ -1,7 +1,15 @@
 import 'katex/dist/katex.min.css';
-import './style.css';
-import { render, buildOutline } from './render.js';
-import { createEditor } from './editor.js';
+import './styles/theme.css';
+import './styles/app.css';
+import './styles/document.css';
+import { renderMarkdown } from './render/markdown.js';
+import { enhance } from './render/enhance.js';
+import { renderDiagrams, openLightbox } from './render/diagrams.js';
+import { countWords, readingMinutes } from './lib/text.js';
+import { icon } from './ui/icons.js';
+import { createOutline } from './ui/outline.js';
+import { createSearch } from './ui/search.js';
+import { createEditor } from './ui/editor.js';
 
 const $ = (s) => document.querySelector(s);
 const native = (msg) => window.webkit?.messageHandlers?.mdv?.postMessage(msg);
@@ -9,37 +17,75 @@ window.addEventListener('error', (e) => native({ type: 'log', message: `${e.mess
 window.addEventListener('unhandledrejection', (e) => native({ type: 'log', message: String(e.reason?.stack || e.reason) }));
 
 const prefs = { theme: 'auto', outline: true, sync: true, ...(window.MDV_PREFS || {}) };
-const state = { path: null, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, outline: [] };
+const state = { path: null, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, pendingLine: 0 };
 const preview = $('#preview');
 const doc = $('#doc');
+const editorPane = $('#editor-pane');
 const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+const outline = createOutline($('#outline-list'), preview);
+const search = createSearch({
+  bar: $('#search'), input: $('#search-input'), count: $('#search-count'),
+  doc, scroller: preview, editor: () => state.editor,
+});
 
 const isDark = () => prefs.theme === 'dark' || (prefs.theme === 'auto' && darkQuery.matches);
-function setPref(key, value) { prefs[key] = value; native({ type: 'pref', key, value }); }
+const editorOpen = () => !editorPane.hidden;
+
+function setPref(key, value) {
+  prefs[key] = value;
+  native({ type: 'pref', key, value });
+}
+
+// --- Look ---
+
+document.querySelectorAll('#toolbar button[data-icon]').forEach((b) => {
+  b.innerHTML = icon(b.dataset.icon) + (b.dataset.label ? `<span>${b.dataset.label}</span>` : '');
+});
 
 function applyTheme() {
-  document.documentElement.dataset.theme = isDark() ? 'dark' : 'light';
-  $('#btn-theme').textContent = { auto: 'Auto', light: 'Light', dark: 'Dark' }[prefs.theme];
-  state.editor?.setDark(isDark());
+  const dark = isDark();
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  const b = $('#btn-theme');
+  b.innerHTML = icon(prefs.theme);
+  b.title = `Theme: ${prefs.theme[0].toUpperCase() + prefs.theme.slice(1)}`;
+  state.editor?.setDark(dark);
+  native({ type: 'chrome', dark, color: getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() });
 }
 
 function applyLayout() {
   $('#outline').hidden = !prefs.outline;
-  $('#btn-outline').setAttribute('aria-pressed', prefs.outline);
-  $('#btn-sync').setAttribute('aria-pressed', prefs.sync);
-  $('#btn-sync').hidden = !state.editor || $('#editor-pane').hidden;
-  $('#btn-editor').setAttribute('aria-pressed', !$('#editor-pane').hidden);
+  document.querySelector('[data-cmd=toggleOutline]').setAttribute('aria-pressed', prefs.outline);
+  document.querySelector('[data-cmd=toggleEditor]').setAttribute('aria-pressed', editorOpen());
+  const sync = document.querySelector('[data-cmd=toggleSync]');
+  sync.hidden = !editorOpen();
+  sync.setAttribute('aria-pressed', prefs.sync);
 }
 
+function updateStatus() {
+  const words = countWords(state.text);
+  $('#st-words').textContent = `${words.toLocaleString()} words`;
+  $('#st-read').textContent = `${readingMinutes(words)} min read`;
+  $('#st-heads').textContent = `${outline.count} sections`;
+}
+
+// --- Render ---
+
+let seq = 0;
 async function refresh({ keepScroll = true } = {}) {
+  const my = ++seq;
   $('#empty').hidden = state.path !== null;
+  $('#status').hidden = state.path === null;
   const y = preview.scrollTop;
-  const done = await render(state.text, doc, { dark: isDark() });
-  if (!done) return;
-  state.outline = buildOutline(doc, $('#outline-list'));
+  const { html, meta } = renderMarkdown(state.text);
+  doc.innerHTML = html;
+  enhance(doc, { meta });
+  if (!(await renderDiagrams(doc, isDark(), () => my === seq))) return;
+  outline.build(doc);
   preview.scrollTop = keepScroll ? y : 0;
-  markActiveHeading();
-  if (search.open) search.run(false);
+  if (state.pendingLine) { scrollPreviewToLine(state.pendingLine, true); state.pendingLine = 0; }
+  search.refresh();
+  updateStatus();
+  updateProgress();
   native({ type: 'rendered' });
 }
 
@@ -49,107 +95,90 @@ function scheduleRender() {
   renderTimer = setTimeout(() => refresh(), 150);
 }
 
+// --- Source line mapping (Zed cursor, editor sync) ---
+
+function blockForLine(n) {
+  let best = null;
+  for (const b of doc.querySelectorAll('.blk')) {
+    if (Number(b.dataset.line) <= n) best = b; else break;
+  }
+  return best;
+}
+
+function scrollPreviewToLine(n, flash) {
+  const b = blockForLine(n);
+  if (!b) return;
+  preview.scrollTop += b.getBoundingClientRect().top - preview.getBoundingClientRect().top - 24;
+  if (flash) {
+    b.classList.remove('flash');
+    void b.offsetWidth;
+    b.classList.add('flash');
+  }
+}
+
+function topPreviewLine() {
+  const top = preview.getBoundingClientRect().top + 8;
+  let line = 1;
+  for (const b of doc.querySelectorAll('.blk')) {
+    if (b.getBoundingClientRect().bottom > top) return Number(b.dataset.line);
+    line = Number(b.dataset.line);
+  }
+  return line;
+}
+
+let syncUntil = 0;
+function syncing() { return prefs.sync && editorOpen() && state.editor && Date.now() >= syncUntil; }
+function lockSync() { syncUntil = Date.now() + 120; }
+
+function updateProgress() {
+  const max = preview.scrollHeight - preview.clientHeight;
+  $('#progress').style.transform = `scaleX(${max > 0 ? preview.scrollTop / max : 0})`;
+}
+
+preview.addEventListener('scroll', () => {
+  outline.markActive();
+  updateProgress();
+  if (syncing()) { lockSync(); state.editor.scrollToLine(topPreviewLine()); }
+});
+
+// --- Editor ---
+
 function setDirty(d) {
   if (state.dirty === d) return;
   state.dirty = d;
+  $('#dirty-dot').hidden = !d;
   native({ type: 'dirty', value: d });
 }
 
-// Outline highlight follows the preview scroll position.
-function markActiveHeading() {
-  const top = preview.getBoundingClientRect().top + 80;
-  let active = null;
-  for (const it of state.outline) {
-    if (it.h.getBoundingClientRect().top <= top) active = it; else break;
-  }
-  state.outline.forEach((it) => it.a.classList.toggle('active', it === active));
-  active?.a.scrollIntoView({ block: 'nearest' });
-}
-
-// --- Sync scroll (proportional, like markdownlivepreview.com) ---
-let syncLock = 0;
-function syncFrom(src, dst) {
-  if (!prefs.sync || $('#editor-pane').hidden || Date.now() < syncLock) return;
-  const ratio = src.scrollTop / Math.max(1, src.scrollHeight - src.clientHeight);
-  syncLock = Date.now() + 60;
-  dst.scrollTop = ratio * (dst.scrollHeight - dst.clientHeight);
-}
-preview.addEventListener('scroll', () => {
-  markActiveHeading();
-  if (state.editor) syncFrom(preview, state.editor.scroller);
-});
-
 function toggleEditor(force) {
-  const pane = $('#editor-pane');
-  const show = force ?? pane.hidden;
+  const show = force ?? !editorOpen();
   if (show && !state.editor) {
-    state.editor = createEditor(pane, state.text, {
+    state.editor = createEditor(editorPane, state.text, {
       dark: isDark(),
       onChange(text) { state.text = text; setDirty(text !== state.saved); scheduleRender(); },
-      onScroll(el) { syncFrom(el, preview); },
+      onScroll() { if (syncing()) { lockSync(); scrollPreviewToLine(state.editor.topLine(), false); } },
     });
   }
-  pane.hidden = !show;
+  const line = preview.scrollTop < 10 ? 1 : topPreviewLine();
+  editorPane.hidden = !show;
   applyLayout();
-  if (show) state.editor.focus();
+  if (show) { state.editor.scrollToLine(line); state.editor.focus(); }
 }
 
-// --- Find in preview (CSS Custom Highlight API: no DOM changes) ---
-const search = {
-  open: false, ranges: [], i: 0,
-  input: $('#search-input'),
-  show() {
-    if (state.editor?.hasFocus()) return state.editor.openSearch();
-    $('#search').hidden = false; this.open = true;
-    this.input.focus(); this.input.select(); this.run(true);
-  },
-  hide() { $('#search').hidden = true; this.open = false; CSS.highlights.clear(); $('#search-count').textContent = ''; },
-  run(jump) {
-    CSS.highlights.clear();
-    this.ranges = [];
-    const q = this.input.value.toLocaleLowerCase();
-    if (!q) { $('#search-count').textContent = ''; return; }
-    const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
-    for (let n; (n = walker.nextNode());) {
-      const t = n.nodeValue.toLocaleLowerCase();
-      if (t.length !== n.nodeValue.length) continue;
-      for (let k = t.indexOf(q); k !== -1; k = t.indexOf(q, k + q.length)) {
-        const r = new Range(); r.setStart(n, k); r.setEnd(n, k + q.length); this.ranges.push(r);
-      }
-    }
-    if (this.i >= this.ranges.length) this.i = 0;
-    this.paint(jump);
-  },
-  paint(jump) {
-    const count = $('#search-count');
-    if (!this.ranges.length) { count.textContent = '0/0'; return; }
-    CSS.highlights.set('search', new Highlight(...this.ranges));
-    CSS.highlights.set('search-current', new Highlight(this.ranges[this.i]));
-    count.textContent = `${this.i + 1}/${this.ranges.length}`;
-    if (jump) {
-      const r = this.ranges[this.i].getBoundingClientRect();
-      const p = preview.getBoundingClientRect();
-      if (r.top < p.top + 40 || r.bottom > p.bottom - 40) preview.scrollTop += r.top - p.top - p.height / 3;
-    }
-  },
-  step(d) {
-    if (!this.open) return this.show();
-    if (!this.ranges.length) return;
-    this.i = (this.i + d + this.ranges.length) % this.ranges.length;
-    this.paint(true);
-  },
-};
-search.input.addEventListener('input', () => { search.i = 0; search.run(true); });
-search.input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') { e.preventDefault(); search.step(e.shiftKey ? -1 : 1); }
-  if (e.key === 'Escape') search.hide();
-});
-$('#search-next').onclick = () => search.step(1);
-$('#search-prev').onclick = () => search.step(-1);
-$('#search-close').onclick = () => search.hide();
+// --- Clicks inside the document ---
 
-// --- Links: anchors scroll here; everything else goes to the app ---
-function onLinkClick(e) {
+function onDocClick(e) {
+  const copyBtn = e.target.closest('.code-copy');
+  if (copyBtn) {
+    native({ type: 'copy', text: copyBtn.closest('.codeblock').querySelector('code').textContent });
+    copyBtn.classList.add('done');
+    copyBtn.querySelector('span').textContent = 'Copied';
+    setTimeout(() => { copyBtn.classList.remove('done'); copyBtn.querySelector('span').textContent = 'Copy'; }, 1200);
+    return;
+  }
+  const diagram = e.target.closest('pre.mermaid');
+  if (diagram?.querySelector('svg') && !e.target.closest('a')) { openLightbox(diagram.querySelector('svg')); return; }
+
   const a = e.target.closest('a');
   if (!a) return;
   const href = a.getAttribute('href');
@@ -161,10 +190,11 @@ function onLinkClick(e) {
     native({ type: 'link', href: a.href });
   }
 }
-doc.addEventListener('click', onLinkClick);
-$('#outline').addEventListener('click', onLinkClick);
+doc.addEventListener('click', onDocClick);
+$('#outline').addEventListener('click', onDocClick);
 
-// --- Commands (toolbar and native menu) ---
+// --- Commands: toolbar buttons and the native menu ---
+
 const commands = {
   toggleEditor: () => toggleEditor(),
   toggleOutline: () => { setPref('outline', !prefs.outline); applyLayout(); },
@@ -177,44 +207,48 @@ const commands = {
   open: () => native({ type: 'open' }),
   cycleTheme: () => commands.setTheme({ auto: 'light', light: 'dark', dark: 'auto' }[prefs.theme]),
   setTheme: (t) => { setPref('theme', t); applyTheme(); refresh(); },
+  scrollToLine: (n) => {
+    if (state.editor && editorOpen()) state.editor.scrollToLine(Number(n));
+    scrollPreviewToLine(Number(n), true);
+  },
 };
-$('#btn-outline').onclick = commands.toggleOutline;
-$('#btn-editor').onclick = commands.toggleEditor;
-$('#btn-sync').onclick = commands.toggleSync;
-$('#btn-find').onclick = commands.find;
-$('#btn-copy').onclick = commands.copy;
-$('#btn-pdf').onclick = commands.print;
-$('#btn-theme').onclick = commands.cycleTheme;
-$('#btn-open').onclick = commands.open;
+
+$('#toolbar').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-cmd]');
+  if (b) commands[b.dataset.cmd]();
+});
 darkQuery.addEventListener('change', () => { if (prefs.theme === 'auto') { applyTheme(); refresh(); } });
 
 $('#banner-reload').onclick = () => {
-  const text = state.pendingDisk;
   $('#banner').hidden = true;
-  state.text = state.saved = text;
+  state.text = state.saved = state.pendingDisk;
   setDirty(false);
-  state.editor?.setText(text);
+  state.editor?.setText(state.text);
   refresh();
 };
 $('#banner-keep').onclick = () => { $('#banner').hidden = true; };
 
-function setBase(dir) {
-  const url = 'mdv://doc' + dir.split('/').map(encodeURIComponent).join('/') + '/';
-  document.querySelector('base').href = url;
+function stamp() {
+  $('#st-updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-// --- API used by the Swift side ---
+// --- API called by the Swift side ---
+
 let printTheme = null;
 window.mdv = {
-  load({ path, name, text }) {
+  load({ path, name, text, line }) {
     state.path = path;
     state.text = state.saved = text;
-    state.dirty = false;
-    setBase(path.slice(0, path.lastIndexOf('/')));
-    $('#title').textContent = name;
+    state.pendingLine = Number(line) || 0;
+    setDirty(false);
+    const dir = path.slice(0, path.lastIndexOf('/'));
+    document.querySelector('base').href = 'mdv://doc' + dir.split('/').map(encodeURIComponent).join('/') + '/';
+    $('#crumb-dir').textContent = dir.split('/').pop() + ' /';
+    $('#crumb-name').textContent = name;
     document.title = name;
     state.editor?.setText(text);
     $('#banner').hidden = true;
+    stamp();
     refresh({ keepScroll: false });
   },
   diskChanged(text) {
@@ -226,12 +260,14 @@ window.mdv = {
     }
     state.text = state.saved = text;
     state.editor?.setText(text);
+    stamp();
     refresh();
   },
   getText: () => state.text,
   saved(text) {
     state.saved = text;
     setDirty(state.text !== text);
+    stamp();
   },
   command(name, arg) { commands[name]?.(arg); },
   async preparePrint() {
@@ -252,5 +288,5 @@ window.mdv = {
 
 applyTheme();
 applyLayout();
-$('#empty').hidden = false;
-if (window.webkit?.messageHandlers?.mdv) native({ type: 'ready' });
+$('#status').hidden = true;
+native({ type: 'ready' });

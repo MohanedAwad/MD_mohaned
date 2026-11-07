@@ -1,4 +1,13 @@
 /* Colour tokens. JS sets data-theme to "light" or "dark" on <html>. */
+
+/* Arabic glyphs only. Listed before the monospace font so the editor gets joined,
+   proportional Arabic instead of the system monospace cascade's letter-spaced Arabic. */
+@font-face {
+  font-family: "MDV Arabic";
+  src: local("SF Arabic"), local("Geeza Pro");
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 :root {
   --bg: #ffffff;
   --panel: #f6f7fb;
@@ -27,8 +36,7 @@
   --hl-fn: #8250df; --hl-var: #953800; --hl-type: #116329;
 
   --font: -apple-system, BlinkMacSystemFont, "SF Arabic", "Geeza Pro", "Segoe UI", sans-serif;
-  /* No Menlo: its monospaced Arabic glyphs look letter-spaced; SF Arabic joins properly. */
-  --mono: ui-monospace, "SF Mono", "SF Arabic", "Geeza Pro", monospace;
+  --mono: "MDV Arabic", ui-monospace, "SF Mono", monospace;
   color-scheme: light;
 }
 

@@ -7,24 +7,32 @@ let webRoot = Bundle.main.resourceURL!.appendingPathComponent("web").standardize
 
 enum Prefs {
     private static let defaults = UserDefaults.standard
-    /// Keys the web view may change (theme, outline, sync) plus app-only ones.
-    private static let webKeys: Set<String> = ["theme", "outline", "sync"]
+    /// Keys the web view may store. Defaults live in the web view (main.js).
+    private static let webKeys: Set<String> = ["theme", "sync", "sidebar", "sidebarHidden"]
 
     static var web: [String: Any] {
-        [
-            "theme": defaults.string(forKey: "theme") ?? "auto",
-            "outline": defaults.object(forKey: "outline") as? Bool ?? true,
-            "sync": defaults.object(forKey: "sync") as? Bool ?? true,
-        ]
+        var out: [String: Any] = [:]
+        for key in webKeys { if let v = defaults.object(forKey: key) { out[key] = v } }
+        return out
     }
 
     static func setFromWeb(_ key: String, _ value: Any) {
-        if webKeys.contains(key) { defaults.set(value, forKey: key) }
+        if webKeys.contains(key), !Snapshot.active { defaults.set(value, forKey: key) }
     }
 
     static var followZed: Bool {
         get { defaults.object(forKey: "followZed") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "followZed") }
+    }
+
+    /// Reopened when the app starts with nothing to open.
+    static var lastSession: (workspace: String?, file: String?) {
+        get { (defaults.string(forKey: "lastWorkspace"), defaults.string(forKey: "lastFile")) }
+        set {
+            guard !Snapshot.active else { return }
+            defaults.set(newValue.workspace, forKey: "lastWorkspace")
+            defaults.set(newValue.file, forKey: "lastFile")
+        }
     }
 }
 

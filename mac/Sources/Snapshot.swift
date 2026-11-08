@@ -1,11 +1,15 @@
 import Cocoa
 
 /// Headless render check used by scripts/snapshot.sh:
-/// `MDViewer --snapshot <file.md> <out.png> [--dark] [--editor] [--line N] [--width N] [--height N]`
+/// `MDViewer --snapshot <file.md> <out.png> [--dark] [--editor] [--line N] [--command ID] [--width N] [--height N]`
 enum Snapshot {
+    /// True while rendering a snapshot: nothing is written to the user's preferences.
+    static private(set) var active = false
+
     static func run() -> Bool {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--snapshot"), args.count > i + 2 else { return false }
+        active = true
         let input = URL(fileURLWithPath: args[i + 1])
         let output = URL(fileURLWithPath: args[i + 2])
         func number(_ flag: String) -> Double? {
@@ -21,6 +25,7 @@ enum Snapshot {
             guard !taken else { return }
             taken = true
             if args.contains("--editor") { doc.command("toggleEditor") }
+            if let c = args.firstIndex(of: "--command"), args.count > c + 1 { doc.command(args[c + 1]) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 doc.web.takeSnapshot(with: nil) { image, error in
                     guard let image, let tiff = image.tiffRepresentation,

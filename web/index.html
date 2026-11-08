@@ -9,18 +9,19 @@
 </head>
 <body>
   <header id="toolbar">
+    <button id="project-btn" data-cmd="switchProject"><span id="project-name">No project</span></button>
     <div class="group">
-      <button data-cmd="toggleOutline" data-icon="outline" data-label="Outline" title="Outline  ⇧⌘O"></button>
-      <button data-cmd="toggleEditor" data-icon="editor" data-label="Editor" title="Editor  ⌘E"></button>
-      <button data-cmd="toggleSync" data-icon="sync" data-label="Sync" title="Sync scroll with the editor"></button>
+      <button data-cmd="toggleSidebar" data-icon="sidebar"></button>
+      <button data-cmd="toggleEditor" data-icon="editor" data-label="Editor"></button>
+      <button data-cmd="toggleSync" data-icon="sync" data-label="Sync"></button>
     </div>
-    <div id="crumb"><span id="crumb-dir"></span><span id="crumb-name">MD Viewer</span><span id="dirty-dot" hidden></span></div>
+    <div id="crumb" dir="auto"><span id="crumb-path"></span><span id="dirty-dot" hidden></span></div>
     <div class="group">
-      <button data-cmd="find" data-icon="find" title="Find  ⌘F"></button>
-      <button data-cmd="copy" data-icon="copy" title="Copy Markdown  ⇧⌘C"></button>
-      <button data-cmd="print" data-icon="pdf" title="Export PDF  ⌘P"></button>
-      <button data-cmd="cycleTheme" id="btn-theme" data-icon="auto" title="Theme: Auto"></button>
-      <button data-cmd="open" data-icon="open" title="Open  ⌘O"></button>
+      <button data-cmd="goToFile" data-icon="find" data-label="Go to file"></button>
+      <button data-cmd="palette" data-icon="command"></button>
+      <button data-cmd="copyMarkdown" data-icon="copy"></button>
+      <button data-cmd="exportPDF" data-icon="pdf"></button>
+      <button data-cmd="cycleTheme" id="btn-theme" data-icon="auto"></button>
     </div>
   </header>
   <div id="banner" hidden>
@@ -29,7 +30,22 @@
     <button id="banner-keep">Keep mine</button>
   </div>
   <div id="main">
-    <nav id="outline"><div class="side-title">Contents</div><div id="outline-list"></div></nav>
+    <aside id="sidebar">
+      <div class="side-tabs">
+        <button data-cmd="showFiles" data-panel="files" data-icon="files" data-label="Files"></button>
+        <button data-cmd="showOutline" data-panel="outline" data-icon="outline" data-label="Outline"></button>
+        <button data-cmd="showBoth" data-panel="both" data-icon="both"></button>
+      </div>
+      <section id="files-panel" class="side-panel">
+        <div class="side-head"><span>Files</span><span id="files-count"></span></div>
+        <input id="files-filter" type="search" placeholder="Filter files" spellcheck="false" dir="auto">
+        <div id="tree" class="side-scroll"></div>
+      </section>
+      <section id="outline-panel" class="side-panel">
+        <div class="side-head"><span>Outline</span></div>
+        <div id="outline-list" class="side-scroll"></div>
+      </section>
+    </aside>
     <section id="editor-pane" hidden></section>
     <section id="preview">
       <div id="progress"></div>
@@ -43,9 +59,9 @@
       <article id="doc" class="md"></article>
       <div id="empty">
         <div class="empty-mark">M↓</div>
-        <h1>MD Viewer</h1>
-        <p>Open a Markdown file with <kbd>⌘O</kbd>, drop one here, or press <kbd>⌥⇧P</kbd> in Zed.</p>
-        <p dir="rtl">افتح ملف Markdown بالضغط على <kbd>⌘O</kbd> أو اسحبه إلى هنا، أو اضغط <kbd>⌥⇧P</kbd> في Zed.</p>
+        <h1 id="empty-title">MD Viewer</h1>
+        <p id="empty-text"></p>
+        <div id="empty-keys"></div>
       </div>
     </section>
   </div>

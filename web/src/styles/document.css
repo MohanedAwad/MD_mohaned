@@ -189,7 +189,7 @@
 .hljs-deletion { color: var(--hl-kw); }
 
 @media print {
-  #toolbar, #banner, #outline, #editor-pane, #search, #empty, #status, #progress, #lightbox { display: none !important; }
+  #toolbar, #banner, #sidebar, #editor-pane, #search, #empty, #status, #progress, #lightbox, #picker { display: none !important; }
   html, body { height: auto; overflow: visible; display: block; }
   #main, #preview { display: block; overflow: visible; }
   .md { max-width: none; padding: 0; }

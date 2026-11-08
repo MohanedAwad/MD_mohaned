@@ -6,6 +6,9 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     let window: NSWindow
     let web: DropWebView
     private(set) var fileURL: URL?
+    private(set) var workspace: URL?
+    private var files: [String] = []
+    private var folderWatcher: FolderWatcher?
     private var diskText = ""
     private var pendingLine = 0
     private var ready = false
@@ -61,7 +64,20 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         switch type {
         case "ready":
             ready = true
+            App.shared.installMenu(commands: msg["commands"] as? [[String: Any]] ?? [])
+            sendRecents()
+            sendWorkspace()
             sendDocument()
+        case "openFile":
+            if let path = msg["path"] as? String {
+                App.shared.open(URL(fileURLWithPath: path), in: self, newTab: msg["newTab"] as? Bool ?? false)
+            }
+        case "openWorkspace":
+            if let path = msg["path"] as? String {
+                App.shared.openWorkspace(URL(fileURLWithPath: path), in: self, newTab: msg["newTab"] as? Bool ?? false)
+            }
+        case "native":
+            if let id = msg["id"] as? String { App.shared.runNative(id) }
         case "rendered":
             onRendered?()
         case "dirty":
@@ -81,7 +97,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         case "open":
             App.shared.openPanel()
         case "link":
-            if let s = msg["href"] as? String, let url = URL(string: s) { openLink(url) }
+            if let s = msg["href"] as? String, let url = URL(string: s) { openLink(url, newTab: msg["newTab"] as? Bool ?? false) }
         case "log":
             FileHandle.standardError.write("[web] \(msg["message"] ?? "")\n".data(using: .utf8)!)
         default:
@@ -89,11 +105,11 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         }
     }
 
-    private func openLink(_ url: URL) {
+    private func openLink(_ url: URL, newTab: Bool = false) {
         if url.scheme == "mdv", url.host == "doc" {
             let file = URL(fileURLWithPath: url.path)
             if markdownExtensions.contains(file.pathExtension.lowercased()) {
-                App.shared.open(file)
+                App.shared.open(file, in: self, newTab: newTab)
             } else {
                 // Reveal, never launch: a link in an untrusted file must not run an app.
                 NSWorkspace.shared.activateFileViewerSelecting([file])
@@ -116,15 +132,73 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     // MARK: File
 
     func load(_ url: URL, line: Int = 0) {
+        if let ws = workspace, url.path.hasPrefix(ws.path + "/") {} else { setWorkspace(Workspace.root(for: url)) }
         fileURL = url
         pendingLine = line
-        window.title = url.lastPathComponent
+        updateTitle()
         window.representedURL = url
+        Prefs.lastSession = (workspace?.path, url.path)
         diskText = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         dirty = false
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         sendDocument()
         watch()
+    }
+
+    /// Shows the project picker state for a folder with no file open yet.
+    func clearFile() {
+        fileURL = nil
+        watcher?.cancel()
+        watcher = nil
+        diskText = ""
+        dirty = false
+        window.representedURL = nil
+        updateTitle()
+        if ready { call("mdv.clear()") }
+    }
+
+    func setWorkspace(_ root: URL) {
+        let root = root.standardizedFileURL
+        guard workspace != root else { return }
+        workspace = root
+        files = []
+        Workspace.noteRecent(root)
+        App.shared.recentsChanged()
+        folderWatcher = FolderWatcher(root) { [weak self] in self?.rescan() }
+        rescan()
+        updateTitle()
+    }
+
+    /// Rescans the project off the main thread; `then` runs after the new list is sent.
+    func rescan(then: ((_ files: [String]) -> Void)? = nil) {
+        guard let root = workspace else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let found = Workspace.scan(root)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.workspace == root else { return }
+                if found != self.files { self.files = found; self.sendWorkspace() }
+                then?(found)
+            }
+        }
+    }
+
+    func sendRecents() {
+        if ready { call("mdv.setRecents(\(jsonLiteral(Workspace.recents)))") }
+    }
+
+    private func sendWorkspace() {
+        guard ready, let root = workspace else { return }
+        let payload: [String: Any] = ["root": root.path, "name": root.lastPathComponent, "files": files]
+        call("mdv.setWorkspace(\(jsonLiteral(payload)))")
+    }
+
+    private func updateTitle() {
+        window.title = fileURL?.lastPathComponent ?? workspace?.lastPathComponent ?? "MD Viewer"
+        window.subtitle = fileURL == nil ? "" : (workspace?.lastPathComponent ?? "")
+    }
+
+    func revealInFinder() {
+        if let target = fileURL ?? workspace { NSWorkspace.shared.activateFileViewerSelecting([target]) }
     }
 
     func scrollTo(line: Int) {
@@ -134,7 +208,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     private func sendDocument() {
         guard ready, let url = fileURL else { return }
-        let payload: [String: Any] = ["path": url.path, "name": url.lastPathComponent, "text": diskText, "line": pendingLine]
+        let payload: [String: Any] = ["path": url.path, "text": diskText, "line": pendingLine]
         pendingLine = 0
         call("mdv.load(\(jsonLiteral(payload)))")
     }

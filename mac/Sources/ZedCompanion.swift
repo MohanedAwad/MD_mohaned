@@ -19,12 +19,14 @@ enum ZedCompanion {
         }
     }
 
-    static func url(file: String, row: String?) -> URL {
+    /// mdviewer://open?path=…&line=…&root=…&beside=zed
+    static func url(file: String, row: String?, root: String?) -> URL {
         var c = URLComponents()
         c.scheme = urlScheme
         c.host = "open"
         c.queryItems = [URLQueryItem(name: "path", value: file), URLQueryItem(name: "beside", value: "zed")]
         if let row, Int(row) != nil { c.queryItems!.append(URLQueryItem(name: "line", value: row)) }
+        if let root, !root.isEmpty, !root.hasPrefix("$") { c.queryItems!.append(URLQueryItem(name: "root", value: root)) }
         return c.url!
     }
 

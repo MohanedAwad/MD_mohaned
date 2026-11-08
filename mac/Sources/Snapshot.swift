@@ -1,7 +1,7 @@
 import Cocoa
 
 /// Headless render check used by scripts/snapshot.sh:
-/// `MDViewer --snapshot <file.md> <out.png> [--dark] [--editor] [--line N] [--command ID] [--hover CSS] [--width N] [--height N]`
+/// `MDViewer --snapshot <file.md|untitled> <out.png> [--dark] [--editor] [--line N] [--command ID] [--hover CSS] [--width N] [--height N]`
 /// `--hover` dispatches a synthetic mouseover on the first element matching CSS (not a real pointer).
 enum Snapshot {
     /// True while rendering a snapshot: nothing is written to the user's preferences.
@@ -20,7 +20,12 @@ enum Snapshot {
         let doc = App.shared.newWindow(prefsOverride: ["theme": args.contains("--dark") ? "dark" : "light"])
         doc.window.setContentSize(size)
         doc.window.orderFront(nil)
-        doc.load(input, line: Int(number("--line") ?? 0))
+        if args[i + 1] == "untitled" {
+            doc.setWorkspace(URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
+            doc.newUntitled()
+        } else {
+            doc.load(input, line: Int(number("--line") ?? 0))
+        }
         var taken = false
         doc.onRendered = {
             guard !taken else { return }

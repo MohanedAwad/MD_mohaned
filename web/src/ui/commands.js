@@ -4,7 +4,7 @@
 export const COMMANDS = [
   { id: 'openAny', title: 'Open File or Folder…', keys: 'cmd+o', group: 'File', native: true },
   { id: 'switchProject', title: 'Switch Project…', keys: 'cmd+alt+o', group: 'File' },
-  { id: 'newTab', title: 'New Tab', keys: 'cmd+t', group: 'File', native: true },
+  { id: 'newTab', title: 'New Untitled Document', keys: 'cmd+t', group: 'File', native: true },
   { id: 'save', title: 'Save', keys: 'cmd+s', group: 'File', native: true },
   { id: 'exportPDF', title: 'Export PDF…', keys: 'cmd+alt+p', group: 'File', native: true },
   { id: 'revealInFinder', title: 'Reveal in Finder', keys: 'cmd+alt+r', group: 'File', native: true },

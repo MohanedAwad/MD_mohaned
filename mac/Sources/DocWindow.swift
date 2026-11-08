@@ -1,4 +1,5 @@
 import Cocoa
+import UniformTypeIdentifiers
 import WebKit
 
 /// One window (or tab) showing one Markdown file.
@@ -7,6 +8,8 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     let web: DropWebView
     private(set) var fileURL: URL?
     private(set) var workspace: URL?
+    /// ⌘T document that has never been saved.
+    private(set) var isUntitled = false
     private var files: [String] = []
     private var folderWatcher: FolderWatcher?
     private var diskText = ""
@@ -68,6 +71,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             sendRecents()
             sendWorkspace()
             sendDocument()
+            if isUntitled { call("mdv.newDocument()") }
         case "openFile":
             if let path = msg["path"] as? String {
                 App.shared.open(URL(fileURLWithPath: path), in: self, newTab: msg["newTab"] as? Bool ?? false)
@@ -131,7 +135,17 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     // MARK: File
 
+    func newUntitled() {
+        isUntitled = true
+        fileURL = nil
+        dirty = false
+        window.representedURL = nil
+        updateTitle()
+        if ready { call("mdv.newDocument()") }
+    }
+
     func load(_ url: URL, line: Int = 0) {
+        isUntitled = false
         if let ws = workspace, url.path.hasPrefix(ws.path + "/") {} else { setWorkspace(Workspace.root(for: url)) }
         fileURL = url
         pendingLine = line
@@ -148,6 +162,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     /// Shows the project picker state for a folder with no file open yet.
     func clearFile() {
         fileURL = nil
+        isUntitled = false
         watcher?.cancel()
         watcher = nil
         diskText = ""
@@ -193,7 +208,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     }
 
     private func updateTitle() {
-        window.title = fileURL?.lastPathComponent ?? workspace?.lastPathComponent ?? "MD Viewer"
+        window.title = fileURL?.lastPathComponent ?? (isUntitled ? "Untitled" : workspace?.lastPathComponent ?? "MD Viewer")
         window.subtitle = fileURL == nil ? "" : (workspace?.lastPathComponent ?? "")
     }
 
@@ -246,7 +261,10 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     }
 
     func save(then done: ((Bool) -> Void)? = nil) {
-        guard let url = fileURL else { done?(false); return }
+        guard let url = fileURL else {
+            if isUntitled { saveAs(then: done) } else { done?(false) }
+            return
+        }
         web.evaluateJavaScript("mdv.getText()") { [weak self] result, _ in
             guard let self, let text = result as? String else { done?(false); return }
             do {
@@ -259,6 +277,29 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             } catch {
                 NSAlert(error: error).beginSheetModal(for: self.window)
                 done?(false)
+            }
+        }
+    }
+
+    /// First save of an untitled document: ask where, starting in the project folder.
+    private func saveAs(then done: ((Bool) -> Void)?) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "md")!]
+        panel.nameFieldStringValue = "Untitled.md"
+        panel.directoryURL = workspace
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, response == .OK, let url = panel.url else { done?(false); return }
+            self.web.evaluateJavaScript("mdv.getText()") { result, _ in
+                guard let text = result as? String else { done?(false); return }
+                do {
+                    try text.write(to: url, atomically: true, encoding: .utf8)
+                    self.load(url)
+                    self.rescan()
+                    done?(true)
+                } catch {
+                    NSAlert(error: error).beginSheetModal(for: self.window)
+                    done?(false)
+                }
             }
         }
     }

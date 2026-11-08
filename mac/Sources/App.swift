@@ -116,7 +116,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
             if !newTab {
                 if let p = preferred, !p.dirty { target = p }
                 else if besideZed { target = docs.first { $0.besideZed && !$0.dirty } }
-                if target == nil { target = docs.first { $0.fileURL == nil } }
+                if target == nil { target = docs.first { $0.fileURL == nil && !$0.isUntitled } }
             }
             doc = target ?? newWindow()
             if let root { doc.setWorkspace(root) }
@@ -127,7 +127,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
 
     /// Switches a window to a project folder and opens its README when there is one.
     func openWorkspace(_ root: URL, in preferred: DocWindow?, newTab: Bool) {
-        let doc = (!newTab && preferred.map { !$0.dirty } == true) ? preferred! : (newTab ? newWindow() : (docs.first { $0.fileURL == nil } ?? newWindow()))
+        let doc = (!newTab && preferred.map { !$0.dirty } == true) ? preferred! : (newTab ? newWindow() : (docs.first { $0.fileURL == nil && !$0.isUntitled } ?? newWindow()))
         doc.setWorkspace(root)
         doc.clearFile()
         doc.rescan { files in
@@ -164,7 +164,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
     func runNative(_ id: String) {
         switch id {
         case "openAny": openPanel()
-        case "newTab": newWindow().window.makeKeyAndOrderFront(nil)
+        case "newTab":
+            let workspace = current?.workspace
+            let doc = newWindow()
+            if let workspace { doc.setWorkspace(workspace) }
+            doc.newUntitled()
+            present(doc, besideZed: false)
         case "save": current?.save()
         case "exportPDF": current?.exportPDF()
         case "revealInFinder": current?.revealInFinder()

@@ -23,7 +23,7 @@ window.addEventListener('unhandledrejection', (e) => native({ type: 'log', messa
 
 const prefs = { theme: 'auto', sync: true, sidebar: 'files', sidebarHidden: false, ...(window.MDV_PREFS || {}) };
 const state = {
-  path: null, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, pendingLine: 0,
+  path: null, untitled: false, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, pendingLine: 0,
   workspace: null, files: [], recents: [],
 };
 const preview = $('#preview');
@@ -119,7 +119,7 @@ function updateHeader() {
   $('#project-name').textContent = ws ? ws.name : 'No project';
   $('#files-count').textContent = ws ? String(state.files.length) : '';
   const rel = relPath(state.path);
-  const shown = rel ?? (state.path ? state.path.split('/').pop() : '');
+  const shown = state.untitled ? 'Untitled' : rel ?? (state.path ? state.path.split('/').pop() : '');
   $('#crumb-path').innerHTML = shown
     .split('/')
     .map((p, i, all) => `<span class="${i === all.length - 1 ? 'crumb-file' : 'crumb-dir'}">${p.replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</span>`)
@@ -128,7 +128,7 @@ function updateHeader() {
 }
 
 function updateEmpty() {
-  const noFile = state.path === null;
+  const noFile = state.path === null && !state.untitled;
   $('#empty').hidden = !noFile;
   $('#status').hidden = noFile;
   if (!noFile) return;
@@ -149,9 +149,13 @@ async function refresh({ keepScroll = true } = {}) {
   const my = ++seq;
   updateEmpty();
   const y = preview.scrollTop;
-  const { html, meta } = renderMarkdown(state.text);
-  doc.innerHTML = html;
-  enhance(doc, { meta });
+  if (state.untitled && !state.text.trim()) {
+    doc.innerHTML = `<p class="untitled-hint">Start writing on the left. The preview follows as you type. <kbd>${keysOf('save')}</kbd> saves.</p>`;
+  } else {
+    const { html, meta } = renderMarkdown(state.text);
+    doc.innerHTML = html;
+    enhance(doc, { meta });
+  }
   if (!(await renderDiagrams(doc, isDark(), () => my === seq))) return;
   outline.build(doc);
   preview.scrollTop = keepScroll ? y : 0;
@@ -224,7 +228,7 @@ function setDirty(d) {
 }
 
 function toggleEditor(force) {
-  if (state.path === null) return;
+  if (state.path === null && !state.untitled) return;
   const show = force ?? !editorOpen();
   if (show && !state.editor) {
     state.editor = createEditor(editorPane, state.text, {
@@ -383,6 +387,7 @@ let printTheme = null;
 window.mdv = {
   load({ path, text, line }) {
     state.path = path;
+    state.untitled = false;
     state.text = state.saved = text;
     state.pendingLine = Number(line) || 0;
     setDirty(false);
@@ -406,8 +411,24 @@ window.mdv = {
     if (changed) $('#files-filter').value = '';
   },
   setRecents(list) { state.recents = list; },
+  /** ⌘T: an empty, unsaved document with the editor open. */
+  newDocument() {
+    state.path = null;
+    state.untitled = true;
+    state.text = state.saved = '';
+    setDirty(false);
+    if (state.workspace) {
+      document.querySelector('base').href = 'mdv://doc' + state.workspace.root.split('/').map(encodeURIComponent).join('/') + '/';
+    }
+    tree.setCurrent(null);
+    state.editor?.setText('');
+    updateHeader();
+    refresh({ keepScroll: false });
+    toggleEditor(true);
+  },
   clear() {
     state.path = null;
+    state.untitled = false;
     state.text = state.saved = '';
     setDirty(false);
     doc.innerHTML = '';

@@ -61,6 +61,8 @@
 }
 .md blockquote > :last-child { margin-bottom: 0; }
 
+.md .untitled-hint { color: var(--muted); font-size: 15px; margin-top: 8vh; text-align: center; }
+
 /* GitHub alerts: > [!NOTE] */
 .md .alert { color: var(--text); }
 .md .alert-title { display: flex; align-items: center; gap: .45em; font-weight: 750; margin-bottom: .3em; }

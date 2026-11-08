@@ -1,7 +1,8 @@
-// Draws the app icon into an .iconset folder: `swift mac/make-icon.swift <out.iconset>`
+// Draws the app icon into an .iconset folder: `swift mac/make-icon.swift <out.iconset> [beta|stable]`
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])
+let beta = CommandLine.arguments.count > 2 && CommandLine.arguments[2] == "beta"
 try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
 func draw(_ px: Int) -> Data {
@@ -57,6 +58,20 @@ func draw(_ px: Int) -> Data {
     let ink = NSColor(srgbRed: 0.11, green: 0.20, blue: 0.55, alpha: 1)
     text("عربي", size: 190, weight: .heavy, color: ink, centerY: 560)
     text("M↓", size: 170, weight: .heavy, color: NSColor(srgbRed: 0.42, green: 0.25, blue: 0.85, alpha: 1), centerY: 335)
+
+    if beta {
+        // Orange band across the bottom so the beta never looks like the daily-use app.
+        let band = NSRect(x: body.minX, y: body.minY, width: body.width, height: 190 * k)
+        NSGraphicsContext.saveGraphicsState()
+        shape.addClip()
+        NSColor(srgbRed: 0.96, green: 0.55, blue: 0.10, alpha: 1).setFill()
+        band.fill()
+        NSGraphicsContext.restoreGraphicsState()
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 120 * k, weight: .black), .foregroundColor: NSColor.white]
+        let label = NSAttributedString(string: "BETA", attributes: attrs)
+        let size = label.size()
+        label.draw(at: NSPoint(x: body.midX - size.width / 2, y: band.midY - size.height / 2))
+    }
 
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])!

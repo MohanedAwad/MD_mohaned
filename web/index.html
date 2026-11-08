@@ -38,7 +38,7 @@
       </div>
       <section id="files-panel" class="side-panel">
         <div class="side-head"><span>Files</span><span id="files-count"></span></div>
-        <input id="files-filter" type="search" placeholder="Filter files" spellcheck="false" dir="auto">
+        <input id="files-filter" type="search" placeholder="Filter files" data-tip="Type to filter · ↩ opens the first match · ⌘↩ in a new tab" spellcheck="false" dir="auto">
         <div id="tree" class="side-scroll"></div>
       </section>
       <section id="outline-panel" class="side-panel">
@@ -52,9 +52,9 @@
       <div id="search" hidden>
         <input id="search-input" type="search" placeholder="Find in document" spellcheck="false" dir="auto">
         <span id="search-count"></span>
-        <button data-step="-1" title="Previous  ⇧↩">↑</button>
-        <button data-step="1" title="Next  ↩">↓</button>
-        <button data-close title="Close  Esc">✕</button>
+        <button data-step="-1" data-tip="Previous match" data-keys="⇧↩">↑</button>
+        <button data-step="1" data-tip="Next match" data-keys="↩">↓</button>
+        <button data-close data-tip="Close" data-keys="Esc">✕</button>
       </div>
       <article id="doc" class="md"></article>
       <div id="empty">

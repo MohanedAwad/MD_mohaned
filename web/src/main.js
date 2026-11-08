@@ -14,6 +14,7 @@ import { createFileTree } from './ui/filetree.js';
 import { createSearch } from './ui/search.js';
 import { createEditor } from './ui/editor.js';
 import { openPicker } from './ui/picker.js';
+import { installTooltips } from './ui/tooltip.js';
 
 const $ = (s) => document.querySelector(s);
 const native = (msg) => window.webkit?.messageHandlers?.mdv?.postMessage(msg);
@@ -53,10 +54,16 @@ const search = createSearch({
 
 // --- Look ---
 
+installTooltips((el) => {
+  if (el.dataset.tip) return { label: el.dataset.tip, keys: el.dataset.keys || '' };
+  const c = byId[el.dataset.cmd];
+  return c ? { label: c.title, keys: formatKeys(c.keys) } : {};
+});
+
 for (const b of document.querySelectorAll('button[data-cmd]')) {
   const c = byId[b.dataset.cmd];
   if (b.dataset.icon) b.innerHTML = icon(b.dataset.icon) + (b.dataset.label ? `<span>${b.dataset.label}</span>` : '');
-  if (c) b.title = `${c.title}${c.keys ? `  ${formatKeys(c.keys)}` : ''}`;
+  if (c) b.setAttribute('aria-label', c.title);
 }
 $('#project-btn').insertAdjacentHTML('afterbegin', icon('project'));
 $('#project-btn').insertAdjacentHTML('beforeend', `<span class="chev-down">${icon('chevron')}</span>`);
@@ -69,7 +76,7 @@ function applyTheme() {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   const b = $('#btn-theme');
   b.innerHTML = icon(prefs.theme);
-  b.title = `Theme: ${prefs.theme[0].toUpperCase() + prefs.theme.slice(1)} (click to change)`;
+  b.dataset.tip = `Theme: ${prefs.theme[0].toUpperCase() + prefs.theme.slice(1)} — click to change`;
   state.editor?.setDark(dark);
   native({ type: 'chrome', dark, color: getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() });
 }

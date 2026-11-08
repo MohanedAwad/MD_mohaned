@@ -41,7 +41,7 @@ function codeBlocks(root) {
     wrap.className = 'codeblock';
     const head = document.createElement('div');
     head.className = 'code-head';
-    head.innerHTML = `<span class="code-lang">${lang}</span><button class="code-copy" title="Copy code">${icon('copy')}<span>Copy</span></button>`;
+    head.innerHTML = `<span class="code-lang">${lang}</span><button class="code-copy" data-tip="Copy this code">${icon('copy')}<span>Copy</span></button>`;
     pre.replaceWith(wrap);
     wrap.append(head, pre);
   });

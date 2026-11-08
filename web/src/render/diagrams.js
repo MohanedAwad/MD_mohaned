@@ -74,7 +74,7 @@ export async function renderDiagrams(root, dark, isCurrent) {
     }
     if (!isCurrent()) return false;
     el.innerHTML = svg;
-    el.title = 'Click to enlarge';
+    el.dataset.tip = 'Click to enlarge · scroll to zoom · drag to pan';
   }
   return true;
 }
@@ -83,7 +83,7 @@ export async function renderDiagrams(root, dark, isCurrent) {
 export function openLightbox(svg) {
   const box = document.createElement('div');
   box.id = 'lightbox';
-  box.innerHTML = '<div class="lb-stage"></div><div class="lb-bar"><button data-z="-1">−</button><button data-z="0">Fit</button><button data-z="1">+</button><button data-close>✕</button></div>';
+  box.innerHTML = '<div class="lb-stage"></div><div class="lb-bar"><button data-z="-1" data-tip="Zoom out" data-keys="−">−</button><button data-z="0" data-tip="Fit" data-keys="0">Fit</button><button data-z="1" data-tip="Zoom in" data-keys="+">+</button><button data-close data-tip="Close" data-keys="Esc">✕</button></div>';
   const stage = box.querySelector('.lb-stage');
   const clone = svg.cloneNode(true);
   clone.removeAttribute('style');

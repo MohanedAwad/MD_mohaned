@@ -30,7 +30,8 @@ export function createFileTree(container, filterInput, { onOpen }) {
   function row({ depth, kind, path, name, open }) {
     const cls = kind === 'dir' ? 'tr-dir' : `tr-file${path === current ? ' current' : ''}`;
     const glyph = kind === 'dir' ? `<span class="tr-chev${open ? ' open' : ''}">${icon('chevron')}</span>${icon('folder')}` : `<span class="tr-chev"></span>${icon('file')}`;
-    return `<div class="tr-row ${cls}" data-kind="${kind}" data-path="${escapeHtml(path)}" style="--depth:${depth}" dir="auto">${glyph}<span class="tr-name">${escapeHtml(name)}</span></div>`;
+    const tip = kind === 'file' ? ` data-tip="${escapeHtml(path)}" data-keys="⌘-click: new tab"` : '';
+    return `<div class="tr-row ${cls}" data-kind="${kind}" data-path="${escapeHtml(path)}"${tip} style="--depth:${depth}" dir="auto">${glyph}<span class="tr-name">${escapeHtml(name)}</span></div>`;
   }
 
   function renderNode(node, depth, out) {

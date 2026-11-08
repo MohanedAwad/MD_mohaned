@@ -1,7 +1,8 @@
 import Cocoa
 
 /// Headless render check used by scripts/snapshot.sh:
-/// `MDViewer --snapshot <file.md> <out.png> [--dark] [--editor] [--line N] [--command ID] [--width N] [--height N]`
+/// `MDViewer --snapshot <file.md> <out.png> [--dark] [--editor] [--line N] [--command ID] [--hover CSS] [--width N] [--height N]`
+/// `--hover` dispatches a synthetic mouseover on the first element matching CSS (not a real pointer).
 enum Snapshot {
     /// True while rendering a snapshot: nothing is written to the user's preferences.
     static private(set) var active = false
@@ -26,6 +27,9 @@ enum Snapshot {
             taken = true
             if args.contains("--editor") { doc.command("toggleEditor") }
             if let c = args.firstIndex(of: "--command"), args.count > c + 1 { doc.command(args[c + 1]) }
+            if let h = args.firstIndex(of: "--hover"), args.count > h + 1 {
+                doc.call("document.querySelector(\(jsonLiteral(args[h + 1])))?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))")
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 doc.web.takeSnapshot(with: nil) { image, error in
                     guard let image, let tiff = image.tiffRepresentation,

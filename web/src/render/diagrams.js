@@ -1,5 +1,6 @@
 import mermaid from 'mermaid';
 import { icon } from '../ui/icons.js';
+import { edgeEnds, nodeKey } from '../lib/diagram.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Arabic", "Geeza Pro", sans-serif';
 
@@ -77,6 +78,34 @@ export async function renderDiagrams(root, dark, isCurrent) {
     el.innerHTML = `<div class="mermaid-scroll">${svg}</div><button class="mermaid-expand" data-tip="Enlarge · scroll to zoom · drag to pan">${icon('expand')}</button>`;
   }
   return true;
+}
+
+/**
+ * Flowcharts: pressing a box keeps it, its arrows and the boxes they reach bright and dims the rest.
+ * Pressing the same box again, or anywhere else in the diagram, clears it.
+ */
+export function focusBox(svg, box) {
+  const again = box?.classList.contains('mmd-picked');
+  svg.classList.remove('mmd-focus');
+  svg.querySelectorAll('.mmd-on, .mmd-picked').forEach((el) => el.classList.remove('mmd-on', 'mmd-picked'));
+  if (!box || again) return;
+  const picked = nodeKey(box.id);
+  const boxes = new Map([...svg.querySelectorAll('g.node')].map((n) => [nodeKey(n.id), n]));
+  const ids = new Set([...boxes.keys(), ...[...svg.querySelectorAll('g.cluster')].map((c) => c.id)]);
+  box.classList.add('mmd-on', 'mmd-picked');
+  // Arrows and their labels are drawn in the same order inside each (possibly nested) graph.
+  for (const paths of svg.querySelectorAll('g.edgePaths')) {
+    const arrows = [...paths.children];
+    const labels = [...(paths.parentElement.querySelector(':scope > g.edgeLabels')?.children || [])];
+    arrows.forEach((arrow, i) => {
+      const ends = edgeEnds(arrow.id, ids);
+      if (!ends || !ends.includes(picked)) return;
+      arrow.classList.add('mmd-on');
+      if (labels.length === arrows.length) labels[i].classList.add('mmd-on');
+      for (const end of ends) boxes.get(end)?.classList.add('mmd-on');
+    });
+  }
+  svg.classList.add('mmd-focus');
 }
 
 /** Full-window view of one diagram: wheel or +/- to zoom, drag to pan, Esc to close. */

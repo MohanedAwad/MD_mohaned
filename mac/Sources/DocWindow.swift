@@ -80,7 +80,16 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             if isUntitled { call("mdv.newDocument()") }
         case "openFile":
             if let path = msg["path"] as? String {
-                App.shared.open(URL(fileURLWithPath: path), in: self, newTab: msg["newTab"] as? Bool ?? false)
+                // Picked inside this window, so it opens in this tab (⌘-click asks for a new one).
+                // Unsaved edits are settled first rather than pushing the file into a new tab.
+                let url = URL(fileURLWithPath: path).standardizedFileURL
+                let newTab = msg["newTab"] as? Bool ?? false
+                let openElsewhere = App.shared.docs.contains { $0 !== self && $0.fileURL == url }
+                if newTab || !dirty || openElsewhere {
+                    App.shared.open(url, in: self, newTab: newTab)
+                } else {
+                    askToSave { App.shared.open(url, in: self) }
+                }
             }
         case "openWorkspace":
             if let path = msg["path"] as? String {
@@ -336,8 +345,8 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     // MARK: Window
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard dirty else { return true }
+    /// Save / Cancel / Don't Save for unsaved edits; `then` runs once they are saved or given up.
+    private func askToSave(then: @escaping () -> Void) {
         let alert = NSAlert()
         alert.messageText = "Save changes to \(fileURL?.lastPathComponent ?? "this file")?"
         alert.informativeText = "Your edits will be lost if you don't save them."
@@ -347,11 +356,16 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self else { return }
             switch response {
-            case .alertFirstButtonReturn: self.save { ok in if ok { self.window.close() } }
-            case .alertThirdButtonReturn: self.dirty = false; self.window.close()
+            case .alertFirstButtonReturn: self.save { ok in if ok { then() } }
+            case .alertThirdButtonReturn: self.dirty = false; then()
             default: break
             }
         }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard dirty else { return true }
+        askToSave { [weak self] in self?.window.close() }
         return false
     }
 

@@ -41,7 +41,9 @@ Opening a file also opens its project: the Zed project, else the nearest Git roo
 
 Shortcuts follow Zed where Zed has one (`⌘P` go to file, `⇧⌘P` command palette, `⌥⌘O` switch project, `⇧⌘O` go to heading, `⌘B` sidebar, `⇧⌘E` files, `⇧⌘B` outline). Press `⌘/` for the full list. Every command and shortcut is defined once, in `web/src/ui/commands.js`; the menu bar, palette and help are built from it.
 
-The editor (`⌘E`) uses Vim keys, with the mode shown under it; `:w` saves, `:q` closes the editor, and **Toggle Vim Mode in Editor** in the command palette turns them off. The document fills the window. `⌘+` / `⌘−` zoom the page: text and diagrams grow, the side gutters do not, and a diagram wider than the window scrolls sideways. Text inside a diagram can be selected; the button in its corner opens the full-window view.
+The editor (`⌘E`) uses Vim keys, with the mode shown under it; `:w` saves, `:q` closes the editor, and **Toggle Vim Mode in Editor** in the command palette turns them off. The document fills the window. `⌘+` / `⌘−` zoom the page: text and diagrams grow, the side gutters do not, and a diagram wider than the window scrolls sideways. Text inside a diagram can be selected; the button in its corner opens the full-window view. In a flowchart, pressing a box keeps it, its arrows and the boxes they reach bright and dims the rest; press it again or an empty spot to clear.
+
+A file picked inside the window (Files panel, `⌘P`) opens in the same tab, asking first if that tab has unsaved edits; `⌘`-click opens a new tab. Files opened from outside (Finder, the command line) get their own tab.
 
 ## Layout
 

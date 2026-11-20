@@ -39,6 +39,50 @@ describe('editor vim mode', () => {
     expect(calls).toEqual([['change', 'two\n']]);
   });
 
+  // Typed keys, as the browser delivers them. Undo needs the editor's history, which only works
+  // when there is a single copy of @codemirror/state in the build (two copies drop it silently).
+  const type = (view, ...keys) => {
+    for (const k of keys) {
+      const ctrl = k.startsWith('C-');
+      view.contentDOM.dispatchEvent(new KeyboardEvent('keydown', { key: ctrl ? k.slice(2) : k, ctrlKey: ctrl, bubbles: true, cancelable: true }));
+    }
+  };
+
+  test('u undoes and Ctrl-R redoes', () => {
+    const { view } = mount(true);
+    type(view, 'd', 'd');
+    expect(view.state.doc.toString()).toBe('two\n');
+    type(view, 'u');
+    expect(view.state.doc.toString()).toBe('one\ntwo\n');
+    type(view, 'C-r');
+    expect(view.state.doc.toString()).toBe('two\n');
+    type(view, 'u');
+    expect(view.state.doc.toString()).toBe('one\ntwo\n');
+  });
+
+  test('everyday normal- and visual-mode commands work', () => {
+    const { view } = mount(true);
+    const text = () => view.state.doc.toString();
+    type(view, 'y', 'y', 'p');
+    expect(text()).toBe('one\none\ntwo\n');
+    type(view, 'x');
+    expect(text()).toBe('one\nne\ntwo\n');
+    type(view, 'g', 'g', 'J');
+    expect(text()).toBe('one ne\ntwo\n');
+    type(view, '>', '>');
+    expect(text()).toBe('  one ne\ntwo\n');
+    type(view, 'V', 'd'); // visual line, then delete it
+    expect(text()).toBe('two\n');
+    type(view, 'd', 'w');
+    expect(text()).toBe('\n');
+    type(view, 'u', 'u', 'u', 'u', 'u', 'u');
+    expect(text()).toBe('one\ntwo\n');
+    type(view, 'i');
+    expect(getCM(view).state.vim.insertMode).toBe(true);
+    type(view, 'Escape');
+    expect(getCM(view).state.vim.insertMode).toBe(false);
+  });
+
   test(':w saves, :q closes the editor, :wq does both', () => {
     const { view, calls } = mount(true);
     const cm = getCM(view);

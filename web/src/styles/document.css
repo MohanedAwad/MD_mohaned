@@ -1,8 +1,8 @@
 /* The rendered Markdown document. Logical properties keep RTL blocks correct. */
 .md {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: 40px 48px 140px;
+  /* Full width of the pane. --zoom is the page zoom (⌘+ / ⌘−, set from Swift): dividing by it
+     keeps the side gutter the same size on screen, so zooming enlarges the content, not the margins. */
+  padding: 36px calc(28px / var(--zoom, 1)) 140px;
   font-size: 16px;
   line-height: 1.8;
   overflow-wrap: break-word;
@@ -144,18 +144,37 @@
 /* Diagrams */
 .md pre.mermaid {
   direction: ltr;
-  display: flex;
-  justify-content: center;
-  padding: 18px 12px;
+  position: relative;
   margin: 0 0 1.2em;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
   font-family: var(--font);
-  cursor: zoom-in;
 }
-.md pre.mermaid svg { max-width: 100%; height: auto; }
-.md pre.mermaid-error { display: block; cursor: default; color: var(--caution); background: var(--caution-bg); white-space: pre-wrap; font: 13px var(--mono); }
+.md .mermaid-scroll { overflow: auto; padding: 18px 12px; border-radius: inherit; }
+/* Fits the pane at 100% zoom; with ⌘+ it keeps that width in page units, so it grows on screen and
+   scrolls sideways. Mermaid's inline max-width (the diagram's natural size) still caps it. */
+.md .mermaid-scroll > svg { display: block; margin: 0 auto; width: calc(100% * var(--zoom, 1)); height: auto; }
+.md .mermaid-expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  opacity: .6;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.md pre.mermaid:hover .mermaid-expand { opacity: 1; }
+.md .mermaid-expand:hover { color: var(--heading); background: var(--panel-2); }
+.md pre.mermaid-error { padding: 18px 12px; color: var(--caution); background: var(--caution-bg); white-space: pre-wrap; font: 13px var(--mono); }
 
 /* Tables */
 .md table {
@@ -194,8 +213,10 @@
   #toolbar, #banner, #sidebar, #editor-pane, #search, #empty, #status, #progress, #lightbox, #picker { display: none !important; }
   html, body { height: auto; overflow: visible; display: block; }
   #main, #preview { display: block; overflow: visible; }
-  .md { max-width: none; padding: 0; }
-  .md .code-head { display: none; }
+  .md { padding: 0; }
+  .md .code-head, .md .mermaid-expand { display: none; }
+  .md .mermaid-scroll { overflow: visible; }
+  .md .mermaid-scroll > svg { width: 100%; }
   .md pre { white-space: pre-wrap; }
   .md h1, .md h2, .md h3 { break-after: avoid; }
   .md .codeblock, .md table, .md pre.mermaid, .md blockquote { break-inside: avoid; }

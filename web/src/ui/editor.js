@@ -4,6 +4,7 @@ import { Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { openSearchPanel } from '@codemirror/search';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { Vim, vim } from '@replit/codemirror-vim';
 
 // perLineTextDirection only reads each line's dir; this sets dir="auto" so the line picks it from its text.
 const autoDir = Decoration.line({ attributes: { dir: 'auto' } });
@@ -23,13 +24,22 @@ const lineDirection = ViewPlugin.fromClass(class {
   }
 }, { decorations: (p) => p.decorations });
 
-export function createEditor(parent, text, { dark, onChange, onScroll }) {
+// Vim keys with the mode shown under the editor (also where `:` commands are typed).
+const vimKeys = (on) => (on ? vim({ status: true }) : []);
+
+export function createEditor(parent, text, { dark, vimMode, onChange, onScroll, onSave, onClose }) {
   const theme = new Compartment();
+  const keys = new Compartment();
   let silent = false;
+  // Ex commands are global to the vim package, and this page has one editor.
+  Vim.defineEx('write', 'w', () => onSave());
+  Vim.defineEx('quit', 'q', () => onClose());
+  Vim.defineEx('wq', 'wq', () => { onSave(); onClose(); });
   const view = new EditorView({
     parent,
     doc: text,
     extensions: [
+      keys.of(vimKeys(vimMode)), // before basicSetup: vim has to see keys ahead of the default keymap
       basicSetup,
       markdown(),
       EditorView.lineWrapping,
@@ -45,6 +55,7 @@ export function createEditor(parent, text, { dark, onChange, onScroll }) {
 
   return {
     setDark(d) { view.dispatch({ effects: theme.reconfigure(d ? oneDark : []) }); },
+    setVim(on) { view.dispatch({ effects: keys.reconfigure(vimKeys(on)) }); },
     setText(t) {
       if (t === view.state.doc.toString()) return;
       silent = true;

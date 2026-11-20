@@ -173,9 +173,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
         case "save": current?.save()
         case "exportPDF": current?.exportPDF()
         case "revealInFinder": current?.revealInFinder()
-        case "zoomIn": current.map { $0.web.pageZoom = min($0.web.pageZoom + 0.1, 3) }
-        case "zoomOut": current.map { $0.web.pageZoom = max($0.web.pageZoom - 0.1, 0.5) }
-        case "zoomReset": current?.web.pageZoom = 1
+        case "zoomIn": current.map { $0.setZoom($0.web.pageZoom + 0.1) }
+        case "zoomOut": current.map { $0.setZoom($0.web.pageZoom - 0.1) }
+        case "zoomReset": current?.setZoom(1)
         case "placeBesideZed":
             if let doc = current { doc.besideZed = true; ZedCompanion.place(doc.window) }
         case "followZed": Prefs.followZed.toggle()

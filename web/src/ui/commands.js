@@ -24,6 +24,7 @@ export const COMMANDS = [
   { id: 'showBoth', title: 'Files and Outline Together', keys: 'cmd+alt+b', group: 'View' },
   { id: 'toggleEditor', title: 'Toggle Editor', keys: 'cmd+e', group: 'View' },
   { id: 'toggleSync', title: 'Toggle Sync Scroll', keys: '', group: 'View' },
+  { id: 'toggleVim', title: 'Toggle Vim Mode in Editor', keys: '', group: 'View' },
   { id: 'themeAuto', title: 'Theme: Auto (follow macOS)', keys: '', group: 'View' },
   { id: 'themeLight', title: 'Theme: Light', keys: '', group: 'View' },
   { id: 'themeDark', title: 'Theme: Dark', keys: '', group: 'View' },

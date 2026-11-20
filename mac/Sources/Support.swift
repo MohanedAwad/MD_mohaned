@@ -8,7 +8,7 @@ let webRoot = Bundle.main.resourceURL!.appendingPathComponent("web").standardize
 enum Prefs {
     private static let defaults = UserDefaults.standard
     /// Keys the web view may store. Defaults live in the web view (main.js).
-    private static let webKeys: Set<String> = ["theme", "sync", "sidebar", "sidebarHidden"]
+    private static let webKeys: Set<String> = ["theme", "sync", "sidebar", "sidebarHidden", "vim"]
 
     static var web: [String: Any] {
         var out: [String: Any] = [:]

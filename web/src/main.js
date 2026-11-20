@@ -21,7 +21,7 @@ const native = (msg) => window.webkit?.messageHandlers?.mdv?.postMessage(msg);
 window.addEventListener('error', (e) => native({ type: 'log', message: `${e.message} @${e.filename}:${e.lineno}` }));
 window.addEventListener('unhandledrejection', (e) => native({ type: 'log', message: String(e.reason?.stack || e.reason) }));
 
-const prefs = { theme: 'auto', sync: true, sidebar: 'files', sidebarHidden: false, ...(window.MDV_PREFS || {}) };
+const prefs = { theme: 'auto', sync: true, sidebar: 'files', sidebarHidden: false, vim: true, ...(window.MDV_PREFS || {}) };
 const state = {
   path: null, untitled: false, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, pendingLine: 0,
   workspace: null, files: [], recents: [],
@@ -233,6 +233,9 @@ function toggleEditor(force) {
   if (show && !state.editor) {
     state.editor = createEditor(editorPane, state.text, {
       dark: isDark(),
+      vimMode: prefs.vim,
+      onSave: () => native({ type: 'native', id: 'save' }),
+      onClose: () => toggleEditor(false),
       onChange(text) { state.text = text; setDirty(text !== state.saved); scheduleRender(); },
       onScroll() { if (syncing()) { lockSync(); scrollPreviewToLine(state.editor.topLine(), false); } },
     });
@@ -313,6 +316,7 @@ const commands = {
   showBoth: () => showPanel('both'),
   toggleEditor: () => toggleEditor(),
   toggleSync: () => { setPref('sync', !prefs.sync); applyLayout(); },
+  toggleVim: () => { setPref('vim', !prefs.vim); state.editor?.setVim(prefs.vim); },
   find: () => search.show(),
   findNext: () => search.step(1),
   findPrevious: () => search.step(-1),
@@ -351,8 +355,9 @@ function onDocClick(e) {
     setTimeout(() => { copyBtn.classList.remove('done'); copyBtn.querySelector('span').textContent = 'Copy'; }, 1200);
     return;
   }
-  const diagram = e.target.closest('pre.mermaid');
-  if (diagram?.querySelector('svg') && !e.target.closest('a')) { openLightbox(diagram.querySelector('svg')); return; }
+  // Only the corner button enlarges, so a click or drag inside the diagram can select its text.
+  const expand = e.target.closest('.mermaid-expand');
+  if (expand) { openLightbox(expand.closest('pre.mermaid').querySelector('.mermaid-scroll > svg')); return; }
 
   const a = e.target.closest('a');
   if (!a) return;
@@ -458,6 +463,8 @@ window.mdv = {
     stamp();
   },
   command: (id, arg) => run(id, arg),
+  /** Page zoom (⌘+ / ⌘−) from the Swift side; the styles use it to keep gutters fixed and grow diagrams. */
+  setZoom(z) { document.documentElement.style.setProperty('--zoom', String(Number(z) || 1)); },
   async preparePrint() {
     printTheme = prefs.theme;
     prefs.theme = 'light';

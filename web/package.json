@@ -12,6 +12,7 @@
     "@codemirror/state": "6.5.2",
     "@codemirror/theme-one-dark": "6.1.2",
     "@codemirror/view": "6.36.4",
+    "@replit/codemirror-vim": "6.4.0",
     "codemirror": "6.0.1",
     "dompurify": "3.2.4",
     "highlight.js": "11.11.1",

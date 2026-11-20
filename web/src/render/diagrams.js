@@ -1,4 +1,5 @@
 import mermaid from 'mermaid';
+import { icon } from '../ui/icons.js';
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Arabic", "Geeza Pro", sans-serif';
 
@@ -73,8 +74,7 @@ export async function renderDiagrams(root, dark, isCurrent) {
       }
     }
     if (!isCurrent()) return false;
-    el.innerHTML = svg;
-    el.dataset.tip = 'Click to enlarge · scroll to zoom · drag to pan';
+    el.innerHTML = `<div class="mermaid-scroll">${svg}</div><button class="mermaid-expand" data-tip="Enlarge · scroll to zoom · drag to pan">${icon('expand')}</button>`;
   }
   return true;
 }

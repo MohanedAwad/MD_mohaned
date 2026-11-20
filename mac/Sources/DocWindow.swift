@@ -62,6 +62,12 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         call("mdv.command(\(jsonLiteral(name)), \(arg.map(jsonLiteral) ?? "undefined"))")
     }
 
+    /// Zooms the whole page and tells it the factor (its styles depend on it).
+    func setZoom(_ zoom: CGFloat) {
+        web.pageZoom = min(max(zoom, 0.5), 3)
+        call("mdv.setZoom(\(Double(web.pageZoom)))")
+    }
+
     func handle(_ body: Any) {
         guard let msg = body as? [String: Any], let type = msg["type"] as? String else { return }
         switch type {

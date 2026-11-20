@@ -176,6 +176,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
         case "zoomIn": current.map { $0.setZoom($0.web.pageZoom + 0.1) }
         case "zoomOut": current.map { $0.setZoom($0.web.pageZoom - 0.1) }
         case "zoomReset": current?.setZoom(1)
+        case "toggleTerminal": current?.toggleTerminal()
         case "placeBesideZed":
             if let doc = current { doc.besideZed = true; ZedCompanion.place(doc.window) }
         case "followZed": Prefs.followZed.toggle()
@@ -189,7 +190,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
 
     @objc func menuCommand(_ sender: NSMenuItem) {
         guard let info = sender.representedObject as? [String: Any], let id = info["id"] as? String else { return }
-        if info["native"] as? Bool == true { runNative(id) } else { current?.command(id) }
+        if info["native"] as? Bool == true { runNative(id) } else { current?.focusDocument(); current?.command(id) }
     }
 
     @objc func openRecent(_ sender: NSMenuItem) {

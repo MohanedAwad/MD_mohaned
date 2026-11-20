@@ -42,6 +42,20 @@ const THEMES = {
 };
 
 const cache = new Map();
+// What the reader did to a diagram (zoom, scroll, picked box), by its source, so it survives the
+// redraw that follows every edit and save.
+const views = new Map();
+const sources = new WeakMap();
+const MAX_ZOOM = 8;
+const viewOf = (pre) => {
+  const src = sources.get(pre);
+  if (!views.has(src)) { if (views.size > 200) views.clear(); views.set(src, { zoom: 1, x: 0, y: 0, picked: null }); }
+  return views.get(src);
+};
+const parts = (pre) => {
+  const scroller = pre.querySelector('.mermaid-scroll');
+  return { scroller, svg: scroller?.firstElementChild };
+};
 
 /** Draws every `pre.mermaid` in root. Returns false if `isCurrent()` turned false meanwhile. */
 export async function renderDiagrams(root, dark, isCurrent) {
@@ -75,7 +89,131 @@ export async function renderDiagrams(root, dark, isCurrent) {
       }
     }
     if (!isCurrent()) return false;
-    el.innerHTML = `<div class="mermaid-scroll">${svg}</div><button class="mermaid-expand" data-tip="Enlarge · scroll to zoom · drag to pan">${icon('expand')}</button>`;
+    el.innerHTML = `<div class="mermaid-scroll">${svg}</div><div class="mermaid-tools"><button data-zoom="0.8" data-tip="Zoom out">−</button><button data-zoom="1.25" data-tip="Zoom in" data-keys="pinch or ⌘-scroll">+</button><button class="mermaid-expand" data-tip="Full window">${icon('expand')}</button></div>`;
+    sources.set(el, src);
+    restoreView(el);
+  }
+  return true;
+}
+
+function applyZoom(pre, view) {
+  const { scroller } = parts(pre);
+  // The box keeps the size it had at fit; a zoomed diagram scrolls inside it.
+  if (view.zoom > 1 && !scroller.style.height) scroller.style.height = `${scroller.offsetHeight}px`;
+  if (view.zoom === 1) scroller.style.height = '';
+  scroller.style.setProperty('--dz', view.zoom);
+  pre.classList.toggle('zoomed', view.zoom > 1);
+}
+
+function restoreView(pre) {
+  const { scroller, svg } = parts(pre);
+  // Mermaid's inline max-width is the diagram's natural size; the styles need it as a number.
+  if (svg.style.maxWidth) scroller.style.setProperty('--natural', svg.style.maxWidth);
+  const view = viewOf(pre);
+  if (view.zoom > 1) { applyZoom(pre, view); scroller.scrollLeft = view.x; scroller.scrollTop = view.y; }
+  if (view.picked) {
+    const box = [...svg.querySelectorAll('g.node')].find((n) => nodeKey(n.id) === view.picked);
+    if (box) focusBox(svg, box); else view.picked = null;
+  }
+}
+
+/** Zooms one diagram inside its box, keeping the point `at` (client x/y; default the centre) still. */
+export function zoomDiagram(pre, factor, at) {
+  const { scroller, svg } = parts(pre);
+  if (!svg) return;
+  const view = viewOf(pre);
+  const zoom = Math.min(MAX_ZOOM, Math.max(1, view.zoom * factor));
+  if (zoom === view.zoom) return;
+  const frame = scroller.getBoundingClientRect();
+  const point = at || { x: frame.left + frame.width / 2, y: frame.top + frame.height / 2 };
+  const before = svg.getBoundingClientRect();
+  const fx = (point.x - before.left) / before.width;
+  const fy = (point.y - before.top) / before.height;
+  view.zoom = zoom;
+  applyZoom(pre, view);
+  const after = svg.getBoundingClientRect();
+  scroller.scrollLeft += after.left + fx * after.width - point.x;
+  scroller.scrollTop += after.top + fy * after.height - point.y;
+  view.x = scroller.scrollLeft;
+  view.y = scroller.scrollTop;
+}
+
+/**
+ * Mouse and trackpad inside a diagram: pinch or ⌘/⌃-scroll zooms at the pointer, and dragging the
+ * background pans once it is zoomed. Plain scrolling is left alone so the page still scrolls past.
+ */
+export function installDiagramGestures(root) {
+  const diagramAt = (e) => (e.target.closest ? e.target.closest('pre.mermaid:not(.mermaid-error)') : null);
+
+  root.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    const pre = diagramAt(e);
+    if (!pre) return;
+    e.preventDefault();
+    zoomDiagram(pre, Math.exp(Math.max(-40, Math.min(40, -e.deltaY)) * 0.01), { x: e.clientX, y: e.clientY });
+  }, { passive: false });
+
+  // Trackpad pinch (WebKit gesture events; `scale` is relative to the start of the pinch).
+  let pinch = null;
+  root.addEventListener('gesturestart', (e) => {
+    const pre = diagramAt(e);
+    if (!pre) return;
+    e.preventDefault();
+    pinch = { pre, last: 1 };
+  });
+  root.addEventListener('gesturechange', (e) => {
+    if (!pinch) return;
+    e.preventDefault();
+    zoomDiagram(pinch.pre, e.scale / pinch.last, { x: e.clientX, y: e.clientY });
+    pinch.last = e.scale;
+  });
+  root.addEventListener('gestureend', () => { pinch = null; });
+
+  // Remember where a zoomed diagram was scrolled to (scroll does not bubble, hence capture).
+  root.addEventListener('scroll', (e) => {
+    const scroller = e.target;
+    if (!scroller.classList?.contains('mermaid-scroll')) return;
+    const view = viewOf(scroller.parentElement);
+    view.x = scroller.scrollLeft;
+    view.y = scroller.scrollTop;
+  }, true);
+
+  // Drag the background of a zoomed diagram to pan. Drags that start on text select it instead.
+  let drag = null;
+  root.addEventListener('mousedown', (e) => {
+    const scroller = e.target.closest?.('pre.mermaid.zoomed .mermaid-scroll');
+    if (!scroller || e.button !== 0 || e.target.closest('.nodeLabel, .edgeLabel, text')) return;
+    drag = { scroller, x: e.clientX, y: e.clientY, left: scroller.scrollLeft, top: scroller.scrollTop, moved: false };
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+    drag.scroller.scrollLeft = drag.left - dx;
+    drag.scroller.scrollTop = drag.top - dy;
+  });
+  window.addEventListener('mouseup', () => {
+    if (drag?.moved) panned = Date.now();
+    drag = null;
+  });
+}
+let panned = 0;
+
+/** Clicks inside a diagram: the corner buttons, and picking a flowchart box. True when it was one. */
+export function diagramClick(e) {
+  const pre = e.target.closest('pre.mermaid');
+  if (!pre || pre.classList.contains('mermaid-error')) return false;
+  const { svg } = parts(pre);
+  const button = e.target.closest('.mermaid-tools button');
+  if (button?.dataset.zoom) zoomDiagram(pre, Number(button.dataset.zoom));
+  else if (button) openLightbox(svg);
+  // A press picks a box; the end of a pan, or a drag that selected text, is left alone.
+  else if (svg?.classList.contains('flowchart') && Date.now() - panned > 250 && getSelection().isCollapsed) {
+    const box = e.target.closest('g.node');
+    focusBox(svg, box);
+    viewOf(pre).picked = svg.querySelector('.mmd-picked') ? nodeKey(box.id) : null;
   }
   return true;
 }
@@ -84,7 +222,7 @@ export async function renderDiagrams(root, dark, isCurrent) {
  * Flowcharts: pressing a box keeps it, its arrows and the boxes they reach bright and dims the rest.
  * Pressing the same box again, or anywhere else in the diagram, clears it.
  */
-export function focusBox(svg, box) {
+function focusBox(svg, box) {
   const again = box?.classList.contains('mmd-picked');
   svg.classList.remove('mmd-focus');
   svg.querySelectorAll('.mmd-on, .mmd-picked').forEach((el) => el.classList.remove('mmd-on', 'mmd-picked'));

@@ -41,9 +41,13 @@ Opening a file also opens its project: the Zed project, else the nearest Git roo
 
 Shortcuts follow Zed where Zed has one (`⌘P` go to file, `⇧⌘P` command palette, `⌥⌘O` switch project, `⇧⌘O` go to heading, `⌘B` sidebar, `⇧⌘E` files, `⇧⌘B` outline). Press `⌘/` for the full list. Every command and shortcut is defined once, in `web/src/ui/commands.js`; the menu bar, palette and help are built from it.
 
-The editor (`⌘E`) uses Vim keys, with the mode shown under it; `:w` saves, `:q` closes the editor, and **Toggle Vim Mode in Editor** in the command palette turns them off. The document fills the window. `⌘+` / `⌘−` zoom the page: text and diagrams grow, the side gutters do not, and a diagram wider than the window scrolls sideways. Text inside a diagram can be selected; the button in its corner opens the full-window view. In a flowchart, pressing a box keeps it, its arrows and the boxes they reach bright and dims the rest; press it again or an empty spot to clear.
+The editor (`⌘E`) uses Vim keys, with the mode shown under it; `:w` saves, `:q` closes the editor, and **Toggle Vim Mode in Editor** in the command palette turns them off. The document fills the window. `⌘+` / `⌘−` zoom the page: text and diagrams grow, the side gutters do not, and a diagram wider than the window scrolls sideways. Inside a diagram's box, pinch or `⌘`-scroll (or the − / + buttons in its corner) zooms at the pointer while the box keeps its size, and dragging the background pans. Text inside a diagram can be selected; the last corner button opens the full-window view. In a flowchart, pressing a box keeps it, its arrows and the boxes they reach bright and dims the rest; press it again or an empty spot to clear.
 
 A file picked inside the window (Files panel, `⌘P`) opens in the same tab, asking first if that tab has unsaved edits; `⌘`-click opens a new tab. Files opened from outside (Finder, the command line) get their own tab.
+
+## Terminal
+
+`⌃`` ` `` opens a terminal under the document, running your login shell in the project folder. From the terminal the same key hides it (the shell keeps running); from the document it moves the keyboard to it. `exit` closes it. Each tab has its own. The terminal is a separate web view, built separately (`web/terminal.html`): the page that renders Markdown has no bridge to the shell.
 
 ## Layout
 
@@ -53,6 +57,7 @@ A file picked inside the window (Files panel, `⌘P`) opens in the same tab, ask
 | `web/src/lib/` | Pure helpers: text direction, slugs, front matter, fuzzy matching |
 | `web/src/render/` | Markdown → HTML with source-line blocks, DOM enhancements (RTL, alerts, code blocks), mermaid |
 | `web/src/ui/` | Command list, pickers, file tree, outline, editor, find, icons |
+| `web/src/terminal.js`, `mac/Sources/Terminal.swift` | Terminal panel: xterm.js page and the shell on a pseudo-terminal |
 | `web/src/styles/` | Colour tokens, window chrome, document typography |
 | `fixtures/` | Documents used for snapshot checks; `Feature Tour.md` ships in the app |
 

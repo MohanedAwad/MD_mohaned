@@ -20,6 +20,11 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     /// Opened from Zed: placed beside Zed and brought forward when Zed is.
     var besideZed = false
     var onRendered: (() -> Void)?
+    /// Document on top, terminal panel (when open) below.
+    private let split = NSSplitView()
+    private var terminal: TerminalPane?
+    private var dark = false
+    private static let terminalHeight: CGFloat = 280
 
     init(prefsOverride: [String: Any] = [:]) {
         let config = WKWebViewConfiguration()
@@ -42,7 +47,10 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         web.setValue(false, forKey: "drawsBackground")
         web.onOpen = { urls in urls.forEach { App.shared.open($0) } }
 
-        window.contentView = web
+        split.isVertical = false
+        split.dividerStyle = .thin
+        split.addArrangedSubview(web)
+        window.contentView = split
         window.delegate = self
         window.title = "MD Viewer"
         window.titlebarAppearsTransparent = true
@@ -60,6 +68,60 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     func command(_ name: String, _ arg: Any? = nil) {
         call("mdv.command(\(jsonLiteral(name)), \(arg.map(jsonLiteral) ?? "undefined"))")
+    }
+
+    // MARK: Terminal
+
+    var terminalWeb: WKWebView? { terminal?.web }
+    private var terminalFocused: Bool {
+        guard let t = terminal, !t.web.isHidden else { return false }
+        return (window.firstResponder as? NSView)?.isDescendant(of: t.web) ?? false
+    }
+
+    /// ⌃`: opens the terminal in the project folder; from the terminal, hides it; otherwise moves the keyboard to it.
+    func toggleTerminal() {
+        guard let t = terminal else {
+            let folder = workspace ?? fileURL?.deletingLastPathComponent() ?? FileManager.default.homeDirectoryForCurrentUser
+            let t = TerminalPane(directory: folder, dark: dark)
+            t.onExit = { [weak self] in self?.closeTerminal() }
+            t.onToggle = { [weak self] in self?.toggleTerminal() }
+            terminal = t
+            split.addArrangedSubview(t.web)
+            split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
+            split.setHoldingPriority(.defaultHigh, forSubviewAt: 1)
+            split.layoutSubtreeIfNeeded()
+            split.setPosition(max(split.bounds.height - Self.terminalHeight, split.bounds.height * 0.3), ofDividerAt: 0)
+            t.focus()
+            return
+        }
+        if t.web.isHidden {
+            t.web.isHidden = false
+            split.adjustSubviews()
+            t.focus()
+        } else if terminalFocused {
+            t.web.isHidden = true
+            split.adjustSubviews()
+            focusDocument()
+        } else {
+            t.focus()
+        }
+    }
+
+    /// The shell ended, or the window is closing.
+    private func closeTerminal() {
+        guard let t = terminal else { return }
+        let hadFocus = terminalFocused
+        terminal = nil
+        t.close()
+        t.web.removeFromSuperview()
+        if hadFocus { focusDocument() }
+    }
+
+    func typeInTerminal(_ text: String) { terminal?.send(text) }
+
+    /// Pickers and other commands run in the document page, so the keyboard has to be there.
+    func focusDocument() {
+        if terminalFocused { window.makeFirstResponder(web) }
     }
 
     /// Zooms the whole page and tells it the factor (its styles depend on it).
@@ -105,7 +167,8 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             if let key = msg["key"] as? String, let value = msg["value"] { Prefs.setFromWeb(key, value) }
         case "chrome":
             // Title bar takes the toolbar colour so the window reads as one surface.
-            let dark = msg["dark"] as? Bool ?? false
+            dark = msg["dark"] as? Bool ?? false
+            terminal?.setDark(dark)
             window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
             if let hex = msg["color"] as? String, let color = NSColor(hex: hex) { window.backgroundColor = color }
         case "copy":
@@ -371,6 +434,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     func windowWillClose(_ notification: Notification) {
         watcher?.cancel()
+        closeTerminal()
         App.shared.closed(self)
     }
 }

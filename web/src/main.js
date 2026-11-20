@@ -4,7 +4,7 @@ import './styles/app.css';
 import './styles/document.css';
 import { renderMarkdown } from './render/markdown.js';
 import { enhance } from './render/enhance.js';
-import { renderDiagrams, openLightbox, focusBox } from './render/diagrams.js';
+import { renderDiagrams, diagramClick, installDiagramGestures } from './render/diagrams.js';
 import { countWords, readingMinutes } from './lib/text.js';
 import { formatKeys } from './lib/fuzzy.js';
 import { COMMANDS } from './ui/commands.js';
@@ -355,12 +355,7 @@ function onDocClick(e) {
     setTimeout(() => { copyBtn.classList.remove('done'); copyBtn.querySelector('span').textContent = 'Copy'; }, 1200);
     return;
   }
-  // Only the corner button enlarges, so a click or drag inside the diagram can select its text.
-  const expand = e.target.closest('.mermaid-expand');
-  if (expand) { openLightbox(expand.closest('pre.mermaid').querySelector('.mermaid-scroll > svg')); return; }
-  const flowchart = e.target.closest('.mermaid-scroll > svg.flowchart');
-  // A press picks a box; a drag that selected text is left alone.
-  if (flowchart && getSelection().isCollapsed) focusBox(flowchart, e.target.closest('g.node'));
+  if (diagramClick(e)) return;
 
   const a = e.target.closest('a');
   if (!a) return;
@@ -374,6 +369,7 @@ function onDocClick(e) {
   }
 }
 doc.addEventListener('click', onDocClick);
+installDiagramGestures(doc);
 $('#outline-list').addEventListener('click', onDocClick);
 
 $('#banner-reload').onclick = () => {

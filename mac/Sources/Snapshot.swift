@@ -1,9 +1,11 @@
 import Cocoa
 
 /// Headless render check used by scripts/snapshot.sh:
-/// `MDViewer --snapshot <file.md|untitled> <out.png> [--dark] [--editor] [--line N] [--command ID] [--hover CSS] [--zoom N] [--js CODE] [--width N] [--height N]`
+/// `MDViewer --snapshot <file.md|untitled> <out.png> [--dark] [--editor] [--line N] [--command ID] [--hover CSS] [--zoom N] [--js CODE] [--terminal TEXT] [--width N] [--height N]`
 /// `--hover` dispatches a synthetic mouseover on the first element matching CSS (not a real pointer).
 /// `--zoom` sets the page zoom (as ⌘+ does); `--js` runs CODE in the page and prints its result.
+/// `--terminal` opens the terminal panel, types TEXT and Return into the shell, prints what the terminal
+/// shows as text, and captures the panel instead (a window that is not on screen may not paint it).
 enum Snapshot {
     /// True while rendering a snapshot: nothing is written to the user's preferences.
     static private(set) var active = false
@@ -42,8 +44,20 @@ enum Snapshot {
             if let h = args.firstIndex(of: "--hover"), args.count > h + 1 {
                 doc.call("document.querySelector(\(jsonLiteral(args[h + 1])))?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))")
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                doc.web.takeSnapshot(with: nil) { image, error in
+            var typed: String?
+            if let t = args.firstIndex(of: "--terminal"), args.count > t + 1 {
+                typed = args[t + 1]
+                doc.toggleTerminal()
+                // Time for the page to load and the login shell to reach its prompt.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { doc.typeInTerminal(args[t + 1] + "\r") }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + (typed == nil ? 1.0 : 5.5)) {
+                if typed != nil {
+                    doc.terminalWeb?.evaluateJavaScript("mdvTerm.text()") { text, _ in print("terminal:\n\(text as? String ?? "(nothing)")") }
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + (typed == nil ? 1.0 : 6.0)) {
+                (typed == nil ? doc.web : doc.terminalWeb ?? doc.web).takeSnapshot(with: nil) { image, error in
                     guard let image, let tiff = image.tiffRepresentation,
                           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {
                         print("snapshot failed: \(String(describing: error))")

@@ -151,14 +151,22 @@
   border-radius: 14px;
   font-family: var(--font);
 }
-.md .mermaid-scroll { overflow: auto; padding: 18px 12px; border-radius: inherit; }
-/* Fits the pane at 100% zoom; with ⌘+ it keeps that width in page units, so it grows on screen and
-   scrolls sideways. Mermaid's inline max-width (the diagram's natural size) still caps it. */
-.md .mermaid-scroll > svg { display: block; margin: 0 auto; width: calc(100% * var(--zoom, 1)); height: auto; }
-.md .mermaid-expand {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+.md .mermaid-scroll { box-sizing: border-box; overflow: auto; padding: 18px 12px; border-radius: inherit; }
+/* Width = fit × page zoom × the diagram's own zoom.
+   Fit: the pane at 100%, never above the diagram's natural size (--natural, from mermaid's inline max-width).
+   Page zoom (--zoom, ⌘+): keeps that width in page units, so it grows on screen and scrolls sideways.
+   Own zoom (--dz, pinch or ⌘-scroll in the box): the box keeps its size and the diagram scrolls inside it. */
+.md .mermaid-scroll > svg {
+  display: block;
+  margin: 0 auto;
+  width: calc(min(100% * var(--zoom, 1), var(--natural, 100000px)) * var(--dz, 1));
+  max-width: none !important;
+  height: auto;
+}
+.md pre.mermaid.zoomed .mermaid-scroll { cursor: grab; }
+.md .mermaid-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: .6; }
+.md pre.mermaid:hover .mermaid-tools { opacity: 1; }
+.md .mermaid-tools button {
   display: grid;
   place-items: center;
   width: 28px;
@@ -168,12 +176,11 @@
   border-radius: 8px;
   background: var(--bg);
   color: var(--muted);
-  opacity: .6;
+  font: 16px/1 var(--font);
   user-select: none;
   -webkit-user-select: none;
 }
-.md pre.mermaid:hover .mermaid-expand { opacity: 1; }
-.md .mermaid-expand:hover { color: var(--heading); background: var(--panel-2); }
+.md .mermaid-tools button:hover { color: var(--heading); background: var(--panel-2); }
 /* A pressed flowchart box: it, its arrows and the boxes they reach stay bright (classes set by focusBox).
    Not scoped to .md so the full-window copy keeps the highlight. !important beats mermaid's per-diagram styles. */
 svg.flowchart g.node { cursor: pointer; }
@@ -220,9 +227,9 @@ svg.mmd-focus g.node.mmd-picked > :is(rect, polygon, circle, ellipse, path) { st
   html, body { height: auto; overflow: visible; display: block; }
   #main, #preview { display: block; overflow: visible; }
   .md { padding: 0; }
-  .md .code-head, .md .mermaid-expand { display: none; }
-  .md .mermaid-scroll { overflow: visible; }
-  .md .mermaid-scroll > svg { width: 100%; }
+  .md .code-head, .md .mermaid-tools { display: none; }
+  .md .mermaid-scroll { overflow: visible; height: auto !important; }
+  .md .mermaid-scroll > svg { width: min(100%, var(--natural, 100%)); }
   .md pre { white-space: pre-wrap; }
   .md h1, .md h2, .md h3 { break-after: avoid; }
   .md .codeblock, .md table, .md pre.mermaid, .md blockquote { break-inside: avoid; }

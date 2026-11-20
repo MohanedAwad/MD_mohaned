@@ -25,6 +25,7 @@ export const COMMANDS = [
   { id: 'toggleEditor', title: 'Toggle Editor', keys: 'cmd+e', group: 'View' },
   { id: 'toggleSync', title: 'Toggle Sync Scroll', keys: '', group: 'View' },
   { id: 'toggleVim', title: 'Toggle Vim Mode in Editor', keys: '', group: 'View' },
+  { id: 'toggleTerminal', title: 'Toggle Terminal', keys: 'ctrl+`', group: 'View', native: true },
   { id: 'themeAuto', title: 'Theme: Auto (follow macOS)', keys: '', group: 'View' },
   { id: 'themeLight', title: 'Theme: Light', keys: '', group: 'View' },
   { id: 'themeDark', title: 'Theme: Dark', keys: '', group: 'View' },

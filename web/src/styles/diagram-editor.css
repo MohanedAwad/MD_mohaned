@@ -1,0 +1,180 @@
+/* Full-window visual flowchart editor (ui/diagram-editor.js). */
+#dgedit {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px var(--font);
+  direction: ltr;
+}
+#dgedit button { font: inherit; color: inherit; cursor: pointer; }
+#dgedit button:disabled { opacity: .4; cursor: default; }
+
+/* Top bar */
+#dgedit .dge-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+#dgedit .dge-bar button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-weight: 500;
+}
+#dgedit .dge-bar button:hover:not(:disabled) { background: var(--panel-2); color: var(--heading); }
+#dgedit .dge-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
+#dgedit .dge-bar .dge-done { margin-left: auto; background: var(--accent); border-color: var(--accent); color: #fff; }
+#dgedit .dge-bar .dge-done:hover { background: var(--accent); color: #fff; filter: brightness(1.08); }
+#dgedit .dge-hint { margin-left: 8px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+#dgedit .dge-hint.dge-bad { color: var(--caution); }
+
+/* Drawing beside the panel; stacked when the window is narrow. */
+#dgedit .dge-main { display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+@media (max-width: 760px) {
+  #dgedit .dge-main { grid-template-columns: none; grid-template-rows: 1fr minmax(180px, 45%); }
+  #dgedit .dge-panel { border-left: 0 !important; border-top: 1px solid var(--border); }
+}
+
+#dgedit .dge-stage { position: relative; overflow: auto; padding: 28px; min-height: 0; background: var(--bg); }
+#dgedit .dge-svg svg {
+  display: block;
+  margin: 0 auto;
+  width: min(100%, var(--natural, 100%));
+  max-width: none !important;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#dgedit .dge-svg.dge-stale { opacity: .35; pointer-events: none; }
+#dgedit .dge-error {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--caution-bg);
+  color: var(--caution);
+  font: 12.5px var(--mono);
+  white-space: pre-wrap;
+}
+
+/* What can be pressed, what is selected, where a new arrow will land. */
+#dgedit g.node, #dgedit g.edgeLabel, #dgedit g.cluster > rect { cursor: pointer; }
+#dgedit .dge-hit { fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer; }
+#dgedit g.node:hover > :is(rect, polygon, circle, ellipse, path) { stroke-width: 2px !important; }
+#dgedit g.node.dge-sel > :is(rect, polygon, circle, ellipse, path),
+#dgedit g.node.dge-target > :is(rect, polygon, circle, ellipse, path) { stroke: var(--accent) !important; stroke-width: 3px !important; }
+#dgedit g.node.dge-target > :is(rect, polygon, circle, ellipse, path) { stroke-dasharray: 5 3; }
+#dgedit g.cluster.dge-sel > rect { stroke: var(--accent) !important; stroke-width: 2.5px !important; stroke-dasharray: 6 4; }
+#dgedit path.dge-edge.dge-sel:not(.dge-hit) { stroke: var(--accent) !important; stroke-width: 3px !important; }
+#dgedit g.edgeLabel.dge-sel { filter: drop-shadow(0 0 2px var(--accent)); }
+
+#dgedit .dge-wire { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2; }
+#dgedit .dge-wire line { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+
+#dgedit .dge-handles { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+#dgedit .dge-handle {
+  position: fixed;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  padding: 0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgb(0 0 0 / .35);
+  pointer-events: auto;
+  cursor: grab;
+}
+#dgedit .dge-handle:hover { transform: scale(1.2); }
+
+#dgedit .dge-input {
+  position: fixed;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--heading);
+  font: 14px var(--font);
+  text-align: center;
+  box-shadow: var(--shadow);
+  outline: none;
+}
+
+/* Side panel */
+#dgedit .dge-panel {
+  overflow: auto;
+  min-height: 0;
+  padding: 16px;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+#dgedit .dge-panel h3 { margin: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+#dgedit .dge-field { display: flex; flex-direction: column; gap: 6px; }
+#dgedit .dge-label { font-weight: 600; color: var(--heading); font-size: 12.5px; }
+#dgedit .dge-panel input:not([type]), #dgedit .dge-panel select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px var(--font);
+}
+#dgedit .dge-panel input:focus, #dgedit .dge-panel select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+#dgedit .dge-panel > button, #dgedit .dge-row button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-weight: 500;
+}
+#dgedit .dge-panel > button:hover, #dgedit .dge-row button:hover { background: var(--panel-2); color: var(--heading); }
+#dgedit .dge-row { display: flex; gap: 6px; }
+#dgedit .dge-row button { flex: 1; padding: 0 6px; }
+#dgedit .dge-panel .dge-danger { color: var(--caution); border-color: color-mix(in srgb, var(--caution) 40%, var(--border)); }
+#dgedit .dge-panel .dge-danger:hover { background: var(--caution-bg); color: var(--caution); }
+
+#dgedit .dge-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; }
+#dgedit .dge-tiles button {
+  display: grid;
+  place-items: center;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+}
+#dgedit .dge-tiles button.dge-text { font-weight: 500; padding: 0 8px; }
+#dgedit .dge-tiles button:hover { color: var(--heading); background: var(--panel-2); }
+#dgedit .dge-tiles button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+#dgedit .dge-tiles svg { width: 28px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+
+#dgedit .dge-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+#dgedit .dge-swatches button { width: 26px; height: 26px; padding: 0; border: 2px solid var(--border); border-radius: 50%; }
+#dgedit .dge-swatches button[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+#dgedit .dge-swatches .dge-none { background: linear-gradient(135deg, transparent 45%, var(--caution) 45% 55%, transparent 55%), var(--bg); }
+
+#dgedit .dge-check { display: flex; align-items: center; gap: 6px; color: var(--text); }
+#dgedit .dge-note { margin: 0; color: var(--muted); }
+#dgedit .dge-help { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.55; display: flex; flex-direction: column; gap: 6px; }
+#dgedit .dge-help b { color: var(--text); font-weight: 600; }

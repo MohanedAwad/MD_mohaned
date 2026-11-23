@@ -57,9 +57,15 @@ export function createEditor(parent, text, { dark, vimMode, onChange, onScroll, 
     setDark(d) { view.dispatch({ effects: theme.reconfigure(d ? oneDark : []) }); },
     setVim(on) { view.dispatch({ effects: keys.reconfigure(vimKeys(on)) }); },
     setText(t) {
-      if (t === view.state.doc.toString()) return;
+      const old = view.state.doc.toString();
+      if (t === old) return;
+      // Only the part that differs, so the cursor and the rest of the document stay put.
+      let from = 0;
+      while (from < old.length && from < t.length && old[from] === t[from]) from++;
+      let end = 0;
+      while (end < old.length - from && end < t.length - from && old[old.length - 1 - end] === t[t.length - 1 - end]) end++;
       silent = true;
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: t } });
+      view.dispatch({ changes: { from, to: old.length - end, insert: t.slice(from, t.length - end) } });
       silent = false;
     },
     hasFocus: () => view.hasFocus,

@@ -57,10 +57,8 @@ const parts = (pre) => {
   return { scroller, svg: scroller?.firstElementChild };
 };
 
-/** Draws every `pre.mermaid` in root. Returns false if `isCurrent()` turned false meanwhile. */
-export async function renderDiagrams(root, dark, isCurrent) {
-  const nodes = [...root.querySelectorAll('pre.mermaid')];
-  if (!nodes.length) return true;
+/** Mermaid's settings for the current theme; returns the theme name. */
+function setup(dark) {
   const mode = dark ? 'dark' : 'light';
   mermaid.initialize({
     startOnLoad: false,
@@ -70,6 +68,30 @@ export async function renderDiagrams(root, dark, isCurrent) {
     themeVariables: { ...THEMES[mode], fontFamily: FONT, darkMode: dark },
     flowchart: { curve: 'basis', padding: 14 },
   });
+  return mode;
+}
+
+let renders = 0;
+/** One diagram's SVG markup, for the diagram editor. Throws mermaid's error for code it cannot draw. */
+export async function renderSvg(src, dark) {
+  setup(dark);
+  const id = `mmd-edit-${++renders}`;
+  try {
+    return (await mermaid.render(id, src)).svg;
+  } catch (err) {
+    document.getElementById('d' + id)?.remove();
+    throw err;
+  }
+}
+
+/** The code a drawn diagram came from. */
+export const diagramSource = (pre) => sources.get(pre);
+
+/** Draws every `pre.mermaid` in root. Returns false if `isCurrent()` turned false meanwhile. */
+export async function renderDiagrams(root, dark, isCurrent) {
+  const nodes = [...root.querySelectorAll('pre.mermaid')];
+  if (!nodes.length) return true;
+  const mode = setup(dark);
   for (const [i, el] of nodes.entries()) {
     const src = el.textContent;
     const key = `${mode}\n${src}`;
@@ -90,6 +112,10 @@ export async function renderDiagrams(root, dark, isCurrent) {
     }
     if (!isCurrent()) return false;
     el.innerHTML = `<div class="mermaid-scroll">${svg}</div><div class="mermaid-tools"><button data-zoom="0.8" data-tip="Zoom out">−</button><button data-zoom="1.25" data-tip="Zoom in" data-keys="pinch or ⌘-scroll">+</button><button class="mermaid-expand" data-tip="Full window">${icon('expand')}</button></div>`;
+    // Flowcharts can be edited by hand: add, rename and delete boxes and arrows.
+    if (el.querySelector('svg')?.getAttribute('aria-roledescription')?.startsWith('flowchart')) {
+      el.querySelector('.mermaid-tools').insertAdjacentHTML('afterbegin', `<button class="mermaid-edit" data-tip="Edit diagram">${icon('editor')}</button>`);
+    }
     sources.set(el, src);
     restoreView(el);
   }

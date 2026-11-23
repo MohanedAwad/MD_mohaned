@@ -4,7 +4,8 @@ import './styles/app.css';
 import './styles/document.css';
 import { renderMarkdown } from './render/markdown.js';
 import { enhance } from './render/enhance.js';
-import { renderDiagrams, diagramClick, installDiagramGestures } from './render/diagrams.js';
+import { renderDiagrams, diagramClick, installDiagramGestures, diagramSource } from './render/diagrams.js';
+import { findMermaidBlock, blockCode, replaceBlock } from './lib/diagram.js';
 import { countWords, readingMinutes } from './lib/text.js';
 import { formatKeys } from './lib/fuzzy.js';
 import { COMMANDS } from './ui/commands.js';
@@ -246,6 +247,38 @@ function toggleEditor(force) {
   if (show) { state.editor.scrollToLine(line); state.editor.focus(); }
 }
 
+// --- Diagram editor (loaded on first use) ---
+
+let diagramEditor = null;
+
+/** Opens the flowchart editor on one diagram; each change is written into that block of the document. */
+async function editDiagram(pre) {
+  const src = diagramSource(pre);
+  let block = src == null ? null : findMermaidBlock(state.text, Number(pre.closest('.blk')?.dataset.line) || 1, src);
+  if (!block) { native({ type: 'log', message: 'diagram editor: block not found in the text' }); return; }
+  const { openDiagramEditor } = await import('./ui/diagram-editor.js');
+  diagramEditor?.close();
+  let code = src;
+  diagramEditor = openDiagramEditor({
+    code,
+    dark: isDark(),
+    /** Writes the new code into the document; false if the block can no longer be found. */
+    onChange(next) {
+      if (blockCode(state.text, block) !== code) block = findMermaidBlock(state.text, 1, code);
+      if (!block) return false;
+      const out = replaceBlock(state.text, block, next);
+      block = out.block;
+      code = next;
+      state.text = out.text;
+      setDirty(state.text !== state.saved);
+      state.editor?.setText(state.text);
+      scheduleRender();
+      return true;
+    },
+    onClose() { diagramEditor = null; },
+  });
+}
+
 // --- Pickers ---
 
 function goToFile() {
@@ -355,6 +388,8 @@ function onDocClick(e) {
     setTimeout(() => { copyBtn.classList.remove('done'); copyBtn.querySelector('span').textContent = 'Copy'; }, 1200);
     return;
   }
+  const edit = e.target.closest('.mermaid-edit');
+  if (edit) { editDiagram(edit.closest('pre.mermaid')); return; }
   if (diagramClick(e)) return;
 
   const a = e.target.closest('a');
@@ -390,6 +425,7 @@ function stamp() {
 let printTheme = null;
 window.mdv = {
   load({ path, text, line }) {
+    diagramEditor?.close();
     state.path = path;
     state.untitled = false;
     state.text = state.saved = text;
@@ -417,6 +453,7 @@ window.mdv = {
   setRecents(list) { state.recents = list; },
   /** ⌘T: an empty, unsaved document with the editor open. */
   newDocument() {
+    diagramEditor?.close();
     state.path = null;
     state.untitled = true;
     state.text = state.saved = '';
@@ -431,6 +468,7 @@ window.mdv = {
     toggleEditor(true);
   },
   clear() {
+    diagramEditor?.close();
     state.path = null;
     state.untitled = false;
     state.text = state.saved = '';

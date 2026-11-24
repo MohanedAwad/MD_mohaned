@@ -52,16 +52,25 @@ export function openPicker({ placeholder, items, onPick, empty = 'No matches' })
     if (active === api) active = null;
   }
 
+  function updateSelection() {
+    list.querySelector('.sel')?.classList.remove('sel');
+    const el = list.children[index];
+    if (el?.classList.contains('pk-item')) {
+      el.classList.add('sel');
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   input.addEventListener('input', () => { index = 0; render(); });
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n')) { e.preventDefault(); index = Math.min(index + 1, shown.length - 1); render(); }
-    else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p')) { e.preventDefault(); index = Math.max(index - 1, 0); render(); }
+    if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n')) { e.preventDefault(); index = Math.min(index + 1, shown.length - 1); updateSelection(); }
+    else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p')) { e.preventDefault(); index = Math.max(index - 1, 0); updateSelection(); }
     else if (e.key === 'Enter') { e.preventDefault(); choose(index, e.metaKey); }
     else if (e.key === 'Escape') { e.preventDefault(); close(); }
   });
   list.addEventListener('mousemove', (e) => {
     const li = e.target.closest('.pk-item');
-    if (li && Number(li.dataset.i) !== index) { index = Number(li.dataset.i); render(); }
+    if (li && Number(li.dataset.i) !== index) { index = Number(li.dataset.i); updateSelection(); }
   });
   list.addEventListener('click', (e) => {
     const li = e.target.closest('.pk-item');

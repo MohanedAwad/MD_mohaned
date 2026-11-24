@@ -18,7 +18,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemVali
         NSApp.mainMenu = MainMenu.build(self, commands: [])
         ZedCompanion.startFollowing { [weak self] in self?.docs.filter(\.besideZed).map(\.window) ?? [] }
         if Snapshot.run() { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             if self.docs.isEmpty { self.restoreSession() }
         }
     }

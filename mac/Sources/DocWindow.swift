@@ -24,6 +24,8 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     private let split = NSSplitView()
     private var terminal: TerminalPane?
     private var dark = false
+    private var editorOpen = false
+    private var crashTimes: [Date] = []
     private static let terminalHeight: CGFloat = 280
 
     init(prefsOverride: [String: Any] = [:]) {
@@ -139,7 +141,13 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             sendRecents()
             sendWorkspace()
             sendDocument()
-            if isUntitled { call("mdv.newDocument()") }
+            if isUntitled {
+                call("mdv.newDocument()")
+            } else if editorOpen {
+                command("toggleEditor", true)
+            }
+        case "editorState":
+            editorOpen = msg["open"] as? Bool ?? false
         case "openFile":
             if let path = msg["path"] as? String {
                 // Picked inside this window, so it opens in this tab (⌘-click asks for a new one).
@@ -209,6 +217,21 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             if let url = action.request.url, action.navigationType == .linkActivated { openLink(url) }
             decisionHandler(.cancel)
         }
+    }
+
+    /// Automatically recover if WebKit's WebContent process crashes or is jetsammed under memory pressure,
+    /// instead of leaving the tab permanently blank and unresponsive.
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        let now = Date()
+        crashTimes = crashTimes.filter { now.timeIntervalSince($0) < 15 }
+        FileHandle.standardError.write("[web] WebContent process terminated; recovering tab\n".data(using: .utf8)!)
+        guard crashTimes.count < 3 else {
+            FileHandle.standardError.write("[web] Too many WebContent crashes in 15s; halting auto-reload\n".data(using: .utf8)!)
+            return
+        }
+        crashTimes.append(now)
+        ready = false
+        webView.load(URLRequest(url: URL(string: "mdv://app/index.html")!))
     }
 
     // MARK: File
@@ -322,7 +345,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
             if !src.data.isDisjoint(with: [.delete, .rename]) {
                 // Editors save by replacing the file; follow the new inode.
                 src.cancel()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { self.watch(); self.reloadFromDisk() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self.watch(); self.reloadFromDisk() }
             } else {
                 self.reloadFromDisk()
             }
@@ -434,7 +457,12 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
 
     func windowWillClose(_ notification: Notification) {
         watcher?.cancel()
+        watcher = nil
+        folderWatcher = nil
         closeTerminal()
+        web.stopLoading()
+        web.navigationDelegate = nil
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "mdv")
         App.shared.closed(self)
     }
 }

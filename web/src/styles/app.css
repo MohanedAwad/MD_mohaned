@@ -161,6 +161,25 @@ button { font: inherit; color: inherit; cursor: default; }
 #editor-pane .cm-editor { flex: 1; height: 100%; font-size: 14px; }
 #editor-pane .cm-scroller { font-family: var(--mono); line-height: 1.65; }
 #editor-pane .cm-editor.cm-focused { outline: none; }
+#editor-pane .cm-vim-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 2px 12px;
+  font: 600 11.5px/1.4 var(--mono);
+  letter-spacing: .03em;
+  color: var(--accent);
+  background: var(--panel);
+}
+#editor-pane .cm-vim-panel input {
+  flex: 1;
+  font: 500 12px/1.4 var(--mono);
+  color: var(--heading);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
 
 #preview { flex: 1 1 50%; min-width: 0; overflow: auto; position: relative; scroll-behavior: auto; }
 #progress {

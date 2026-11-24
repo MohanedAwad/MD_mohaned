@@ -78,7 +78,7 @@ final class FolderWatcher {
             Unmanaged<FolderWatcher>.fromOpaque(info).takeUnretainedValue().changed()
         }
         stream = FSEventStreamCreate(nil, callback, &context, [folder.path] as CFArray,
-                                     FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 0.4,
+                                     FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 0.2,
                                      FSEventStreamCreateFlags(kFSEventStreamCreateFlagNone))
         if let stream {
             FSEventStreamSetDispatchQueue(stream, .main)
@@ -90,7 +90,7 @@ final class FolderWatcher {
         pending?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.onChange() }
         pending = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
     }
 
     deinit {

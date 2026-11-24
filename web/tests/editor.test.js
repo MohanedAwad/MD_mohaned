@@ -108,4 +108,34 @@ describe('editor vim mode', () => {
     expect(parent.querySelector('.cm-vim-panel')).toBeNull();
     expect(view.scrollDOM.classList.contains('cm-vimMode')).toBe(false);
   });
+
+  test('reset() wipes undo history and returns Vim to NORMAL mode', () => {
+    const { editor, view } = mount(true);
+    type(view, 'd', 'd');
+    expect(view.state.doc.toString()).toBe('two\n');
+    type(view, 'i');
+    expect(getCM(view).state.vim.insertMode).toBe(true);
+    editor.reset('fresh file\nsecond line\n');
+    expect(view.state.doc.toString()).toBe('fresh file\nsecond line\n');
+    expect(getCM(view).state.vim.insertMode).toBe(false);
+    // Undoing after reset must not revert to the previous file's contents.
+    type(view, 'u');
+    expect(view.state.doc.toString()).toBe('fresh file\nsecond line\n');
+  });
+
+  test('topLine() is safe when layout is unmeasured and scrollToLine can move cursor', () => {
+    const { editor, view } = mount(true);
+    expect(editor.topLine()).toBe(1);
+    editor.scrollToLine(2, { moveCursor: true });
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(2);
+  });
+
+  test('setDark switches between dark and light code-editor themes cleanly', () => {
+    const { editor, parent } = mount(true);
+    expect(parent.querySelector('.cm-editor')).not.toBeNull();
+    editor.setDark(true);
+    expect(parent.querySelector('.cm-editor')).not.toBeNull();
+    editor.setDark(false);
+    expect(parent.querySelector('.cm-editor')).not.toBeNull();
+  });
 });

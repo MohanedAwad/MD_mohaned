@@ -36,6 +36,7 @@ function alerts(root) {
 function codeBlocks(root) {
   root.querySelectorAll('pre:not(.mermaid) > code').forEach((code) => {
     const pre = code.parentElement;
+    if (pre.parentElement?.classList.contains('codeblock')) return;
     const lang = (code.className.match(/language-([\w+#-]+)/) || [])[1] || '';
     const wrap = document.createElement('div');
     wrap.className = 'codeblock';
@@ -47,8 +48,8 @@ function codeBlocks(root) {
   });
 }
 
-function frontMatter(root, meta) {
-  if (!meta.length) return;
+export function frontMatter(root, meta) {
+  if (!meta.length) return null;
   const card = document.createElement('dl');
   card.className = 'frontmatter';
   for (const [k, v] of meta) {
@@ -58,10 +59,13 @@ function frontMatter(root, meta) {
     dd.textContent = v;
     card.append(dt, dd);
   }
+  const dir = textDirection(card.textContent);
+  if (dir) card.setAttribute('dir', dir);
   root.prepend(card);
+  return card;
 }
 
-function headingIds(root) {
+export function headingIds(root) {
   const used = new Map();
   root.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach((h) => {
     const base = slugify(h.textContent);
@@ -69,6 +73,13 @@ function headingIds(root) {
     used.set(base, n + 1);
     h.id = n ? `${base}-${n}` : base;
   });
+}
+
+/** Enhances a single block element (alerts, code headers, RTL direction). */
+export function enhanceBlock(el) {
+  alerts(el);
+  codeBlocks(el);
+  applyDirection(el);
 }
 
 export function enhance(root, { meta }) {

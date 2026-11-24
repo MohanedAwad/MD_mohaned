@@ -3,7 +3,7 @@ import './styles/theme.css';
 import './styles/app.css';
 import './styles/document.css';
 import { renderMarkdown } from './render/markdown.js';
-import { enhance } from './render/enhance.js';
+import { enhanceBlock, frontMatter, headingIds } from './render/enhance.js';
 import { renderDiagrams, diagramClick, installDiagramGestures, diagramSource } from './render/diagrams.js';
 import { findMermaidBlock, blockCode, replaceBlock } from './lib/diagram.js';
 import { countWords, readingMinutes } from './lib/text.js';
@@ -13,7 +13,6 @@ import { icon } from './ui/icons.js';
 import { createOutline } from './ui/outline.js';
 import { createFileTree } from './ui/filetree.js';
 import { createSearch } from './ui/search.js';
-import { createEditor } from './ui/editor.js';
 import { openPicker } from './ui/picker.js';
 import { installTooltips } from './ui/tooltip.js';
 
@@ -108,10 +107,14 @@ function showPanel(mode) {
   if (!prefs.sidebarHidden && mode === 'files') $('#files-filter').focus();
 }
 
+let lastStatusText = null;
 function updateStatus() {
-  const words = countWords(state.text);
-  $('#st-words').textContent = `${words.toLocaleString()} words`;
-  $('#st-read').textContent = `${readingMinutes(words)} min read`;
+  if (state.text !== lastStatusText) {
+    lastStatusText = state.text;
+    const words = countWords(state.text);
+    $('#st-words').textContent = `${words.toLocaleString()} words`;
+    $('#st-read').textContent = `${readingMinutes(words)} min read`;
+  }
   $('#st-heads').textContent = `${outline.count} sections`;
 }
 
@@ -143,22 +146,76 @@ function updateEmpty() {
   $('#empty-keys').innerHTML = keys.map(([id, label]) => `<div><span>${label}</span><kbd>${keysOf(id)}</kbd></div>`).join('');
 }
 
-// --- Render ---
+// --- Render (incremental block-level DOM patch) ---
 
 let seq = 0;
-async function refresh({ keepScroll = true } = {}) {
+let blockEls = [];
+let lastMetaKey = '';
+let showingHint = false;
+
+function patchDocument(blocks, meta) {
+  if (showingHint) {
+    doc.textContent = '';
+    blockEls = [];
+    lastMetaKey = '';
+    showingHint = false;
+  }
+
+  const metaKey = meta.length ? JSON.stringify(meta) : '';
+  if (metaKey !== lastMetaKey) {
+    doc.querySelector(':scope > .frontmatter')?.remove();
+    if (meta.length) frontMatter(doc, meta);
+    lastMetaKey = metaKey;
+  }
+
+  let domChanged = false;
+  const nextEls = new Array(blocks.length);
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const prev = blockEls[i];
+    if (prev && prev._rawHtml === b.html) {
+      if (prev.dataset.line !== String(b.line)) prev.dataset.line = String(b.line);
+      nextEls[i] = prev;
+      continue;
+    }
+    const el = document.createElement('div');
+    el.className = 'blk';
+    el.dataset.line = String(b.line);
+    el._rawHtml = b.html;
+    el.innerHTML = b.html;
+    enhanceBlock(el);
+    if (prev) prev.replaceWith(el);
+    else doc.append(el);
+    nextEls[i] = el;
+    domChanged = true;
+  }
+  for (let i = blocks.length; i < blockEls.length; i++) {
+    blockEls[i].remove();
+    domChanged = true;
+  }
+  blockEls = nextEls;
+  if (domChanged) headingIds(doc);
+  return domChanged;
+}
+
+async function refresh({ keepScroll = true, force = false } = {}) {
   const my = ++seq;
   updateEmpty();
   const y = preview.scrollTop;
+  let domChanged = false;
   if (state.untitled && !state.text.trim()) {
     doc.innerHTML = `<p class="untitled-hint">Start writing on the left. The preview follows as you type. <kbd>${keysOf('save')}</kbd> saves.</p>`;
+    blockEls = [];
+    lastMetaKey = '';
+    showingHint = true;
+    domChanged = true;
   } else {
-    const { html, meta } = renderMarkdown(state.text);
-    doc.innerHTML = html;
-    enhance(doc, { meta });
+    const { blocks, meta } = renderMarkdown(state.text);
+    domChanged = patchDocument(blocks, meta);
   }
-  if (!(await renderDiagrams(doc, isDark(), () => my === seq))) return;
-  outline.build(doc);
+  if (!(await renderDiagrams(doc, isDark(), () => my === seq, { force }))) return;
+  if (domChanged || !keepScroll) outline.build(doc);
+  lockSync();
   preview.scrollTop = keepScroll ? y : 0;
   if (state.pendingLine) { scrollPreviewToLine(state.pendingLine, true); state.pendingLine = 0; }
   search.refresh();
@@ -170,15 +227,24 @@ async function refresh({ keepScroll = true } = {}) {
 let renderTimer = 0;
 function scheduleRender() {
   clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => refresh(), 150);
+  const delay = state.text.length > 20000 ? 110 : 45;
+  renderTimer = setTimeout(() => refresh(), delay);
 }
 
 // --- Source line mapping (Zed cursor, editor sync) ---
 
 function blockForLine(n) {
+  let lo = 0;
+  let hi = blockEls.length - 1;
   let best = null;
-  for (const b of doc.querySelectorAll('.blk')) {
-    if (Number(b.dataset.line) <= n) best = b; else break;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (Number(blockEls[mid].dataset.line) <= n) {
+      best = blockEls[mid];
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
   }
   return best;
 }
@@ -186,6 +252,7 @@ function blockForLine(n) {
 function scrollPreviewToLine(n, flash) {
   const b = blockForLine(n);
   if (!b) return;
+  lockSync();
   preview.scrollTop += b.getBoundingClientRect().top - preview.getBoundingClientRect().top - 24;
   if (flash) {
     b.classList.remove('flash');
@@ -195,31 +262,44 @@ function scrollPreviewToLine(n, flash) {
 }
 
 function topPreviewLine() {
+  if (!blockEls.length) return 1;
   const top = preview.getBoundingClientRect().top + 8;
-  let line = 1;
-  for (const b of doc.querySelectorAll('.blk')) {
-    if (b.getBoundingClientRect().bottom > top) return Number(b.dataset.line);
-    line = Number(b.dataset.line);
+  let lo = 0;
+  let hi = blockEls.length - 1;
+  let found = blockEls.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (blockEls[mid].getBoundingClientRect().bottom > top) {
+      found = mid;
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
   }
-  return line;
+  return Number(blockEls[found].dataset.line) || 1;
 }
 
 let syncUntil = 0;
 const syncing = () => prefs.sync && editorOpen() && state.editor && Date.now() >= syncUntil;
-const lockSync = () => { syncUntil = Date.now() + 120; };
+const lockSync = () => { syncUntil = Date.now() + 140; };
 
 function updateProgress() {
   const max = preview.scrollHeight - preview.clientHeight;
   $('#progress').style.transform = `scaleX(${max > 0 ? preview.scrollTop / max : 0})`;
 }
 
+let previewScrollRaf = 0;
 preview.addEventListener('scroll', () => {
-  outline.markActive();
-  updateProgress();
-  if (syncing()) { lockSync(); state.editor.scrollToLine(topPreviewLine()); }
-});
+  if (previewScrollRaf) return;
+  previewScrollRaf = requestAnimationFrame(() => {
+    previewScrollRaf = 0;
+    outline.markActive();
+    updateProgress();
+    if (syncing()) { lockSync(); state.editor.scrollToLine(topPreviewLine()); }
+  });
+}, { passive: true });
 
-// --- Editor ---
+// --- Editor (lazy-loaded on first open) ---
 
 function setDirty(d) {
   if (state.dirty === d) return;
@@ -228,23 +308,45 @@ function setDirty(d) {
   native({ type: 'dirty', value: d });
 }
 
-function toggleEditor(force) {
+let editorModulePromise = null;
+let editorToggleSeq = 0;
+
+async function toggleEditor(force) {
   if (state.path === null && !state.untitled) return;
   const show = force ?? !editorOpen();
-  if (show && !state.editor) {
-    state.editor = createEditor(editorPane, state.text, {
-      dark: isDark(),
-      vimMode: prefs.vim,
-      onSave: () => native({ type: 'native', id: 'save' }),
-      onClose: () => toggleEditor(false),
-      onChange(text) { state.text = text; setDirty(text !== state.saved); scheduleRender(); },
-      onScroll() { if (syncing()) { lockSync(); scrollPreviewToLine(state.editor.topLine(), false); } },
-    });
-  }
+  const myToggle = ++editorToggleSeq;
   const line = preview.scrollTop < 10 ? 1 : topPreviewLine();
+
+  // Unhide BEFORE mounting CodeMirror so viewport & Vim fat-cursor measure real geometry.
   editorPane.hidden = !show;
   applyLayout();
-  if (show) { state.editor.scrollToLine(line); state.editor.focus(); }
+  native({ type: 'editorState', open: show });
+
+  if (!show) return;
+
+  if (!state.editor) {
+    editorModulePromise ??= import('./ui/editor.js');
+    const { createEditor } = await editorModulePromise;
+    // User may have closed the editor or switched tabs while the chunk was loading.
+    if (myToggle !== editorToggleSeq || !editorOpen()) return;
+    if (!state.editor) {
+      state.editor = createEditor(editorPane, state.text, {
+        dark: isDark(),
+        vimMode: prefs.vim,
+        onSave: () => native({ type: 'native', id: 'save' }),
+        onClose: () => toggleEditor(false),
+        onChange(text) { state.text = text; setDirty(text !== state.saved); scheduleRender(); },
+        onScroll() { if (syncing()) { lockSync(); scrollPreviewToLine(state.editor.topLine(), false); } },
+      });
+    }
+  } else {
+    state.editor.setText(state.text);
+  }
+
+  lockSync();
+  state.editor.measure();
+  state.editor.scrollToLine(line, { moveCursor: true });
+  state.editor.focus();
 }
 
 // --- Diagram editor (loaded on first use) ---
@@ -347,7 +449,7 @@ const commands = {
   showFiles: () => showPanel('files'),
   showOutline: () => showPanel('outline'),
   showBoth: () => showPanel('both'),
-  toggleEditor: () => toggleEditor(),
+  toggleEditor: (force) => toggleEditor(force),
   toggleSync: () => { setPref('sync', !prefs.sync); applyLayout(); },
   toggleVim: () => { setPref('vim', !prefs.vim); state.editor?.setVim(prefs.vim); },
   find: () => search.show(),
@@ -359,12 +461,13 @@ const commands = {
   themeLight: () => setTheme('light'),
   themeDark: () => setTheme('dark'),
   scrollToLine: (n) => {
-    if (state.editor && editorOpen()) state.editor.scrollToLine(Number(n));
+    lockSync();
+    if (state.editor && editorOpen()) state.editor.scrollToLine(Number(n), { moveCursor: true });
     scrollPreviewToLine(Number(n), true);
   },
 };
 
-function setTheme(t) { setPref('theme', t); applyTheme(); refresh(); }
+function setTheme(t) { setPref('theme', t); applyTheme(); refresh({ force: true }); }
 
 function run(id, arg) {
   if (commands[id]) return commands[id](arg);
@@ -375,7 +478,7 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-cmd]');
   if (b) run(b.dataset.cmd);
 });
-darkQuery.addEventListener('change', () => { if (prefs.theme === 'auto') { applyTheme(); refresh(); } });
+darkQuery.addEventListener('change', () => { if (prefs.theme === 'auto') { applyTheme(); refresh({ force: true }); } });
 
 // --- Clicks inside the document ---
 
@@ -433,7 +536,7 @@ window.mdv = {
     setDirty(false);
     const dir = path.slice(0, path.lastIndexOf('/'));
     document.querySelector('base').href = 'mdv://doc' + dir.split('/').map(encodeURIComponent).join('/') + '/';
-    state.editor?.setText(text);
+    state.editor?.reset(text);
     $('#banner').hidden = true;
     tree.setCurrent(relPath(path));
     updateHeader();
@@ -462,7 +565,7 @@ window.mdv = {
       document.querySelector('base').href = 'mdv://doc' + state.workspace.root.split('/').map(encodeURIComponent).join('/') + '/';
     }
     tree.setCurrent(null);
-    state.editor?.setText('');
+    state.editor?.reset('');
     updateHeader();
     refresh({ keepScroll: false });
     toggleEditor(true);
@@ -474,8 +577,13 @@ window.mdv = {
     state.text = state.saved = '';
     setDirty(false);
     doc.innerHTML = '';
+    blockEls = [];
+    lastMetaKey = '';
+    showingHint = false;
     outline.build(doc);
     editorPane.hidden = true;
+    native({ type: 'editorState', open: false });
+    state.editor?.reset('');
     tree.setCurrent(null);
     applyLayout();
     updateHeader();
@@ -506,7 +614,7 @@ window.mdv = {
     printTheme = prefs.theme;
     prefs.theme = 'light';
     applyTheme();
-    await refresh();
+    await refresh({ force: true });
     return true;
   },
   endPrint() {
@@ -514,7 +622,7 @@ window.mdv = {
     prefs.theme = printTheme;
     printTheme = null;
     applyTheme();
-    refresh();
+    refresh({ force: true });
   },
 };
 
@@ -523,3 +631,8 @@ applyLayout();
 updateHeader();
 updateEmpty();
 native({ type: 'ready', commands: COMMANDS });
+
+// Warm the editor chunk once idle so toggling Vim/Editor is instant without slowing startup.
+const preloadEditor = () => { editorModulePromise ??= import('./ui/editor.js'); };
+if (typeof requestIdleCallback === 'function') requestIdleCallback(preloadEditor, { timeout: 1500 });
+else setTimeout(preloadEditor, 300);

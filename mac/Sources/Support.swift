@@ -64,7 +64,9 @@ final class SchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
         let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        let headers = ["Content-Type": mime, "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store"]
+        let isImmutableAsset = url.host == "app" && url.path.hasPrefix("/assets/")
+        let cache = isImmutableAsset ? "public, max-age=31536000, immutable" : "no-store"
+        let headers = ["Content-Type": mime, "Access-Control-Allow-Origin": "*", "Cache-Control": cache]
         task.didReceive(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers)!)
         task.didReceive(data)
         task.didFinish()

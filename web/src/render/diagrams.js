@@ -1,6 +1,9 @@
-import mermaid from 'mermaid';
 import { icon } from '../ui/icons.js';
 import { edgeEnds, nodeKey } from '../lib/diagram.js';
+
+let mermaidPromise = null;
+const loadMermaid = () => (mermaidPromise ??= import('mermaid').then((m) => m.default));
+let initializedMode = null;
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Arabic", "Geeza Pro", sans-serif';
 
@@ -58,23 +61,27 @@ const parts = (pre) => {
 };
 
 /** Mermaid's settings for the current theme; returns the theme name. */
-function setup(dark) {
+async function setup(dark) {
+  const mermaid = await loadMermaid();
   const mode = dark ? 'dark' : 'light';
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: 'strict',
-    theme: 'base',
-    fontFamily: FONT,
-    themeVariables: { ...THEMES[mode], fontFamily: FONT, darkMode: dark },
-    flowchart: { curve: 'basis', padding: 14 },
-  });
-  return mode;
+  if (initializedMode !== mode) {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      fontFamily: FONT,
+      themeVariables: { ...THEMES[mode], fontFamily: FONT, darkMode: dark },
+      flowchart: { curve: 'basis', padding: 14 },
+    });
+    initializedMode = mode;
+  }
+  return { mermaid, mode };
 }
 
 let renders = 0;
 /** One diagram's SVG markup, for the diagram editor. Throws mermaid's error for code it cannot draw. */
 export async function renderSvg(src, dark) {
-  setup(dark);
+  const { mermaid } = await setup(dark);
   const id = `mmd-edit-${++renders}`;
   try {
     return (await mermaid.render(id, src)).svg;
@@ -88,15 +95,20 @@ export async function renderSvg(src, dark) {
 export const diagramSource = (pre) => sources.get(pre);
 
 /** Draws every `pre.mermaid` in root. Returns false if `isCurrent()` turned false meanwhile. */
-export async function renderDiagrams(root, dark, isCurrent) {
+export async function renderDiagrams(root, dark, isCurrent, { force = false } = {}) {
   const nodes = [...root.querySelectorAll('pre.mermaid')];
   if (!nodes.length) return true;
-  const mode = setup(dark);
+  const mode = dark ? 'dark' : 'light';
+  let mermaid = null;
   for (const [i, el] of nodes.entries()) {
-    const src = el.textContent;
+    // Incremental DOM patch preserved an already-rendered diagram for the same theme.
+    if (!force && el.querySelector('.mermaid-scroll')) continue;
+    const src = sources.get(el) ?? el.textContent;
     const key = `${mode}\n${src}`;
     let svg = cache.get(key);
     if (!svg) {
+      if (!mermaid) ({ mermaid } = await setup(dark));
+      if (!isCurrent()) return false;
       const id = `mmd-${Date.now()}-${i}`;
       try {
         ({ svg } = await mermaid.render(id, src));
@@ -111,6 +123,7 @@ export async function renderDiagrams(root, dark, isCurrent) {
       }
     }
     if (!isCurrent()) return false;
+    el.classList.remove('mermaid-error');
     el.innerHTML = `<div class="mermaid-scroll">${svg}</div><div class="mermaid-tools"><button data-zoom="0.8" data-tip="Zoom out">−</button><button data-zoom="1.25" data-tip="Zoom in" data-keys="pinch or ⌘-scroll">+</button><button class="mermaid-expand" data-tip="Full window">${icon('expand')}</button></div>`;
     // Flowcharts can be edited by hand: add, rename and delete boxes and arrows.
     if (el.querySelector('svg')?.getAttribute('aria-roledescription')?.startsWith('flowchart')) {

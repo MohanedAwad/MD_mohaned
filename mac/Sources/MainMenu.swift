@@ -43,14 +43,14 @@ enum MainMenu {
             return i
         }
 
-        let appMenu = menu("MD Viewer")
-        [item("About MD Viewer", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+        let appMenu = menu("MD_mohaned")
+        [item("About MD_mohaned", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
          .separator(),
-         item("Hide MD Viewer", #selector(NSApplication.hide(_:)), "h"),
+         item("Hide MD_mohaned", #selector(NSApplication.hide(_:)), "h"),
          item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
          item("Show All", #selector(NSApplication.unhideAllApplications(_:))),
          .separator(),
-         item("Quit MD Viewer", #selector(NSApplication.terminate(_:)), "q")].forEach(appMenu.addItem)
+         item("Quit MD_mohaned", #selector(NSApplication.terminate(_:)), "q")].forEach(appMenu.addItem)
 
         groupOrder.forEach { _ = menu($0) }
 

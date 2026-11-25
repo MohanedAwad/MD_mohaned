@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 VARIANT="${1:-beta}"
-if [ "$VARIANT" = stable ]; then NAME="MD Viewer"; CMD="mdviewer"; else NAME="MD Viewer Beta"; CMD="mdviewer-beta"; fi
+if [ "$VARIANT" = stable ]; then NAME="MD_mohaned"; CMD="md-mohaned"; else NAME="MD_mohaned Beta"; CMD="md-mohaned-beta"; fi
 ./scripts/build.sh "$VARIANT"
 DEST="$HOME/Applications/$NAME.app"
 mkdir -p "$HOME/Applications"

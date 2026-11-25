@@ -54,7 +54,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
         split.addArrangedSubview(web)
         window.contentView = split
         window.delegate = self
-        window.title = "MD Viewer"
+        window.title = "MD_mohaned"
         window.titlebarAppearsTransparent = true
         window.tabbingMode = .preferred
         window.tabbingIdentifier = "mdv"
@@ -309,7 +309,7 @@ final class DocWindow: NSObject, NSWindowDelegate, WKNavigationDelegate {
     }
 
     private func updateTitle() {
-        window.title = fileURL?.lastPathComponent ?? (isUntitled ? "Untitled" : workspace?.lastPathComponent ?? "MD Viewer")
+        window.title = fileURL?.lastPathComponent ?? (isUntitled ? "Untitled" : workspace?.lastPathComponent ?? "MD_mohaned")
         window.subtitle = fileURL == nil ? "" : (workspace?.lastPathComponent ?? "")
     }
 

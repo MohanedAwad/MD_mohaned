@@ -105,7 +105,7 @@ class DocWindow {
       height: 800,
       minWidth: 420,
       minHeight: 320,
-      title: 'MD Viewer',
+      title: 'MD_mohaned',
       backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1117' : '#ffffff',
       show: false,
       autoHideMenuBar: false,
@@ -155,7 +155,7 @@ class DocWindow {
   }
 
   updateTitle() {
-    const name = this.filePath ? path.basename(this.filePath) : (this.isUntitled ? 'Untitled' : (this.workspace ? path.basename(this.workspace) : 'MD Viewer'));
+    const name = this.filePath ? path.basename(this.filePath) : (this.isUntitled ? 'Untitled' : (this.workspace ? path.basename(this.workspace) : 'MD_mohaned'));
     this.win.setTitle(this.dirty ? `${name} •` : name);
   }
 

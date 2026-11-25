@@ -6,9 +6,9 @@ set -eu
 cd "$(dirname "$0")/.."
 VARIANT="${1:-beta}"
 if [ "$VARIANT" = stable ]; then
-  NAME="MD Viewer"; BUNDLE_ID="com.ibrahimsafwat.mdviewer"; SCHEME="mdviewer"
+  NAME="MD_mohaned"; BUNDLE_ID="com.mohanedawad.mdmohaned"; SCHEME="md-mohaned"
 else
-  NAME="MD Viewer Beta"; BUNDLE_ID="com.ibrahimsafwat.mdviewer.beta"; SCHEME="mdviewer-beta"
+  NAME="MD_mohaned Beta"; BUNDLE_ID="com.mohanedawad.mdmohaned.beta"; SCHEME="md-mohaned-beta"
 fi
 
 ./scripts/web.sh "npm run build"

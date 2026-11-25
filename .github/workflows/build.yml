@@ -33,7 +33,7 @@ jobs:
       - run: npm run dist --prefix windows
       - uses: actions/upload-artifact@v4
         with:
-          name: md-viewer-windows
+          name: md-mohaned-windows
           path: |
             build/windows/*.exe
             build/windows/*.msi
@@ -48,11 +48,11 @@ jobs:
           node-version: 22
       - run: npm ci --prefix web
       - run: ./scripts/build.sh stable
-      - run: ditto -c -k --sequesterRsrc --keepParent "build/MD Viewer.app" "build/MD-Viewer-macOS.zip"
+      - run: ditto -c -k --sequesterRsrc --keepParent "build/MD_mohaned.app" "build/MD_mohaned-macOS.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: md-viewer-macos
-          path: build/MD-Viewer-macOS.zip
+          name: md-mohaned-macos
+          path: build/MD_mohaned-macOS.zip
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -67,5 +67,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/md-viewer-windows/*
-            artifacts/md-viewer-macos/*
+            artifacts/md-mohaned-windows/*
+            artifacts/md-mohaned-macos/*

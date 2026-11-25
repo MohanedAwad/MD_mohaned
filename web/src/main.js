@@ -134,7 +134,7 @@ function updateHeader() {
     .split('/')
     .map((p, i, all) => `<span class="${i === all.length - 1 ? 'crumb-file' : 'crumb-dir'}">${p.replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</span>`)
     .join('<span class="crumb-sep">/</span>');
-  document.title = shown || 'MD Viewer';
+  document.title = shown || 'MD_mohaned';
 }
 
 function updateEmpty() {
@@ -145,7 +145,7 @@ function updateEmpty() {
   const keys = state.workspace
     ? [['goToFile', 'Go to a file'], ['showFiles', 'Files panel'], ['switchProject', 'Switch project'], ['palette', 'All commands']]
     : [['openAny', 'Open a file or folder'], ['switchProject', 'Recent projects'], ['palette', 'All commands']];
-  $('#empty-title').textContent = state.workspace ? state.workspace.name : 'MD Viewer';
+  $('#empty-title').textContent = state.workspace ? state.workspace.name : 'MD_mohaned';
   $('#empty-text').textContent = state.workspace
     ? `${state.files.length} Markdown files. Pick one to start reading.`
     : 'Open a Markdown file or a project folder, or press ⌥⇧P in Zed.';

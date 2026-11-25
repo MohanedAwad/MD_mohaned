@@ -1,6 +1,6 @@
 {
-  "name": "md-viewer-windows",
-  "productName": "MD Viewer",
+  "name": "md-mohaned-windows",
+  "productName": "MD_mohaned",
   "version": "1.0.0",
   "description": "Fast native Markdown viewer & Vim editor for Windows and macOS",
   "main": "main.cjs",
@@ -16,8 +16,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.ibrahimsafwat.mdviewer",
-    "productName": "MD Viewer",
+    "appId": "com.mohanedawad.mdmohaned",
+    "productName": "MD_mohaned",
     "directories": {
       "output": "../build/windows"
     },

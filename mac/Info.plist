@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>MD Viewer</string>
-  <key>CFBundleDisplayName</key><string>MD Viewer</string>
-  <key>CFBundleIdentifier</key><string>com.ibrahimsafwat.mdviewer</string>
+  <key>CFBundleName</key><string>MD_mohaned</string>
+  <key>CFBundleDisplayName</key><string>MD_mohaned</string>
+  <key>CFBundleIdentifier</key><string>com.mohanedawad.mdmohaned</string>
   <key>CFBundleExecutable</key><string>MDViewer</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -17,8 +17,8 @@
   <key>CFBundleURLTypes</key>
   <array>
     <dict>
-      <key>CFBundleURLName</key><string>MD Viewer companion link</string>
-      <key>CFBundleURLSchemes</key><array><string>mdviewer</string></array>
+      <key>CFBundleURLName</key><string>MD_mohaned companion link</string>
+      <key>CFBundleURLSchemes</key><array><string>md-mohaned</string></array>
     </dict>
   </array>
   <key>CFBundleDocumentTypes</key>

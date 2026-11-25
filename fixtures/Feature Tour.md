@@ -1,12 +1,12 @@
 ---
-title: MD Viewer — Feature Tour
+title: MD_mohaned — Feature Tour
 author: Ibrahim Safwat
 tags: markdown, arabic, mermaid
 ---
 
 # دليل المميزات
 
-هذا مستند تجريبي يعرض كل ما يدعمه **MD Viewer**: نص عربي من اليمين إلى اليسار، مع كلمات English و `code` داخل السطر.
+هذا مستند تجريبي يعرض كل ما يدعمه **MD_mohaned**: نص عربي من اليمين إلى اليسار، مع كلمات English و `code` داخل السطر.
 
 > [!TIP]
 > اضغط <kbd>⌘E</kbd> لفتح المحرر بجانب المعاينة، و <kbd>⌘F</kbd> للبحث في المستند.
@@ -51,7 +51,7 @@ $$
 ```mermaid
 sequenceDiagram
   participant Z as Zed
-  participant V as MD Viewer
+  participant V as MD_mohaned
   Z->>V: ⌥⇧P (file + cursor line)
   V-->>Z: shows beside Zed, keeps your focus
   Z->>V: you save

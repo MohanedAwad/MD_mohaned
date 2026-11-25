@@ -5,12 +5,12 @@ enum ZedCompanion {
     /// From Info.plist, so the beta build (mdviewer-beta) never receives the stable app's links.
     static let urlScheme: String = {
         let types = Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]]
-        return (types?.first?["CFBundleURLSchemes"] as? [String])?.first ?? "mdviewer"
+        return (types?.first?["CFBundleURLSchemes"] as? [String])?.first ?? "md-mohaned"
     }()
 
-    /// ~/Library/Logs/MD Viewer/zed.log: one line per Zed request, to tell "task never ran" from "app ignored it".
+    /// ~/Library/Logs/MD_mohaned/zed.log: one line per Zed request, to tell "task never ran" from "app ignored it".
     static func log(_ line: String) {
-        let name = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "MD Viewer"
+        let name = Bundle.main.infoDictionary?["CFBundleName"] as? String ?? "MD_mohaned"
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/\(name)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("zed.log")

@@ -1,4 +1,4 @@
-# MD Viewer for Windows
+# MD_mohaned for Windows
 
 The Windows host wraps the shared `web/` UI in Electron using the exact same `mdv://` protocol and command bridge as the macOS Swift app.
 
@@ -19,5 +19,5 @@ Installers (`.exe` NSIS setup + portable `.exe`) are written to `build/windows/`
 ## Publish automatically (no Windows machine needed)
 
 Push a tag (for example `v1.0.0`) or run the **Build & Release** workflow in GitHub Actions (`.github/workflows/build.yml`). It builds both:
-- `MD Viewer Setup *.exe` + portable `.exe` on `windows-latest`
-- `MD Viewer.app` on `macos-latest`
+- `MD_mohaned Setup *.exe` + portable `.exe` on `windows-latest`
+- `MD_mohaned.app` on `macos-latest`

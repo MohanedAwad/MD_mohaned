@@ -106,6 +106,8 @@ class DocWindow {
       minWidth: 420,
       minHeight: 320,
       title: 'MD Viewer',
+      backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1117' : '#ffffff',
+      show: false,
       autoHideMenuBar: false,
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
@@ -114,6 +116,7 @@ class DocWindow {
         sandbox: false,
       },
     });
+    this.win.once('ready-to-show', () => this.win.show());
 
     docs.add(this);
 
@@ -517,14 +520,14 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     prefs = createPrefsStore(path.join(app.getPath('userData'), 'prefs.json'));
 
-    protocol.handle('mdv', (request) => {
+    protocol.handle('mdv', async (request) => {
       const u = new URL(request.url);
       if (u.hostname === 'app') {
         const rel = decodeURIComponent(u.pathname).replace(/^\/+/, '') || 'index.html';
         const file = path.resolve(webRoot, rel);
         if (!file.startsWith(path.resolve(webRoot))) return new Response('Forbidden', { status: 403 });
         try {
-          const data = fs.readFileSync(file);
+          const data = await fs.promises.readFile(file);
           const mime = MIME_TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
           const cache = rel.startsWith('assets/') ? 'public, max-age=31536000, immutable' : 'no-store';
           return new Response(data, { status: 200, headers: { 'Content-Type': mime, 'Cache-Control': cache } });
@@ -538,7 +541,7 @@ if (!app.requestSingleInstanceLock()) {
         const file = path.resolve(local);
         if (!IMAGE_EXTS.has(path.extname(file).toLowerCase())) return new Response('Forbidden', { status: 403 });
         try {
-          const data = fs.readFileSync(file);
+          const data = await fs.promises.readFile(file);
           const mime = MIME_TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
           return new Response(data, { status: 200, headers: { 'Content-Type': mime, 'Cache-Control': 'no-store' } });
         } catch {

@@ -9,7 +9,7 @@
 }
 .md > .blk:first-child > :first-child,
 .md > .frontmatter + .blk > :first-child { margin-top: 0; }
-.blk { border-radius: 8px; }
+.blk { border-radius: 8px; contain: layout style; }
 .blk.flash { animation: flash 1.6s ease-out; }
 @keyframes flash { from { background: var(--flash); box-shadow: 0 0 0 8px var(--flash); } to { background: transparent; box-shadow: 0 0 0 8px transparent; } }
 

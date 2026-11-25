@@ -1,4 +1,5 @@
 import { fuzzyFilter, fuzzyScore } from '../lib/fuzzy.js';
+import { isPrimaryMod } from '../lib/bridge.js';
 
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -65,7 +66,7 @@ export function openPicker({ placeholder, items, onPick, empty = 'No matches' })
   input.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n')) { e.preventDefault(); index = Math.min(index + 1, shown.length - 1); updateSelection(); }
     else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p')) { e.preventDefault(); index = Math.max(index - 1, 0); updateSelection(); }
-    else if (e.key === 'Enter') { e.preventDefault(); choose(index, e.metaKey); }
+    else if (e.key === 'Enter') { e.preventDefault(); choose(index, isPrimaryMod(e)); }
     else if (e.key === 'Escape') { e.preventDefault(); close(); }
   });
   list.addEventListener('mousemove', (e) => {
@@ -74,7 +75,7 @@ export function openPicker({ placeholder, items, onPick, empty = 'No matches' })
   });
   list.addEventListener('click', (e) => {
     const li = e.target.closest('.pk-item');
-    if (li) choose(Number(li.dataset.i), e.metaKey);
+    if (li) choose(Number(li.dataset.i), isPrimaryMod(e));
   });
   box.addEventListener('mousedown', (e) => { if (e.target === box) close(); });
 

@@ -8,6 +8,7 @@ import { renderDiagrams, diagramClick, installDiagramGestures, diagramSource } f
 import { findMermaidBlock, blockCode, replaceBlock } from './lib/diagram.js';
 import { countWords, readingMinutes } from './lib/text.js';
 import { formatKeys } from './lib/fuzzy.js';
+import { docBaseHref, getInitialPrefs, isPrimaryMod, normalizePath, postToHost } from './lib/bridge.js';
 import { COMMANDS } from './ui/commands.js';
 import { icon } from './ui/icons.js';
 import { createOutline } from './ui/outline.js';
@@ -17,11 +18,11 @@ import { openPicker } from './ui/picker.js';
 import { installTooltips } from './ui/tooltip.js';
 
 const $ = (s) => document.querySelector(s);
-const native = (msg) => window.webkit?.messageHandlers?.mdv?.postMessage(msg);
+const native = postToHost;
 window.addEventListener('error', (e) => native({ type: 'log', message: `${e.message} @${e.filename}:${e.lineno}` }));
 window.addEventListener('unhandledrejection', (e) => native({ type: 'log', message: String(e.reason?.stack || e.reason) }));
 
-const prefs = { theme: 'auto', sync: true, sidebar: 'files', sidebarHidden: false, vim: true, ...(window.MDV_PREFS || {}) };
+const prefs = { theme: 'auto', sync: true, sidebar: 'files', sidebarHidden: false, vim: true, ...getInitialPrefs() };
 const state = {
   path: null, untitled: false, text: '', saved: '', dirty: false, editor: null, pendingDisk: null, pendingLine: 0,
   workspace: null, files: [], recents: [],
@@ -38,8 +39,13 @@ function setPref(key, value) {
   native({ type: 'pref', key, value });
 }
 
-const relPath = (abs) => (state.workspace && abs?.startsWith(state.workspace.root + '/') ? abs.slice(state.workspace.root.length + 1) : null);
-const absPath = (rel) => `${state.workspace.root}/${rel}`;
+const relPath = (abs) => {
+  if (!state.workspace || !abs) return null;
+  const root = normalizePath(state.workspace.root).replace(/\/+$/, '');
+  const norm = normalizePath(abs);
+  return norm.startsWith(root + '/') ? norm.slice(root.length + 1) : null;
+};
+const absPath = (rel) => `${normalizePath(state.workspace.root).replace(/\/+$/, '')}/${rel}`;
 
 // --- Panels ---
 
@@ -123,7 +129,7 @@ function updateHeader() {
   $('#project-name').textContent = ws ? ws.name : 'No project';
   $('#files-count').textContent = ws ? String(state.files.length) : '';
   const rel = relPath(state.path);
-  const shown = state.untitled ? 'Untitled' : rel ?? (state.path ? state.path.split('/').pop() : '');
+  const shown = state.untitled ? 'Untitled' : rel ?? (state.path ? normalizePath(state.path).split('/').pop() : '');
   $('#crumb-path').innerHTML = shown
     .split('/')
     .map((p, i, all) => `<span class="${i === all.length - 1 ? 'crumb-file' : 'crumb-dir'}">${p.replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</span>`)
@@ -503,7 +509,7 @@ function onDocClick(e) {
   if (href.startsWith('#')) {
     document.getElementById(decodeURIComponent(href.slice(1)))?.scrollIntoView({ block: 'start' });
   } else {
-    native({ type: 'link', href: a.href, newTab: e.metaKey });
+    native({ type: 'link', href: a.href, newTab: isPrimaryMod(e) });
   }
 }
 doc.addEventListener('click', onDocClick);
@@ -534,8 +540,9 @@ window.mdv = {
     state.text = state.saved = text;
     state.pendingLine = Number(line) || 0;
     setDirty(false);
-    const dir = path.slice(0, path.lastIndexOf('/'));
-    document.querySelector('base').href = 'mdv://doc' + dir.split('/').map(encodeURIComponent).join('/') + '/';
+    const normPath = normalizePath(path);
+    const dir = normPath.slice(0, normPath.lastIndexOf('/'));
+    document.querySelector('base').href = docBaseHref(dir);
     state.editor?.reset(text);
     $('#banner').hidden = true;
     tree.setCurrent(relPath(path));
@@ -562,7 +569,7 @@ window.mdv = {
     state.text = state.saved = '';
     setDirty(false);
     if (state.workspace) {
-      document.querySelector('base').href = 'mdv://doc' + state.workspace.root.split('/').map(encodeURIComponent).join('/') + '/';
+      document.querySelector('base').href = docBaseHref(state.workspace.root);
     }
     tree.setCurrent(null);
     state.editor?.reset('');

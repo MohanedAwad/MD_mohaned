@@ -1,0 +1,58 @@
+{
+  "name": "md-viewer-windows",
+  "productName": "MD Viewer",
+  "version": "1.0.0",
+  "description": "Fast native Markdown viewer & Vim editor for Windows and macOS",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "build:web": "npm --prefix ../web run build",
+    "start": "electron .",
+    "pack": "electron-builder --win --dir",
+    "dist": "npm run build:web && electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.ibrahimsafwat.mdviewer",
+    "productName": "MD Viewer",
+    "directories": {
+      "output": "../build/windows"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "lib/**/*",
+      {
+        "from": "../web/dist",
+        "to": "web",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../fixtures",
+        "to": "fixtures",
+        "filter": ["Feature Tour.md"]
+      }
+    ],
+    "fileAssociations": [
+      { "ext": "md", "name": "Markdown Document", "role": "Editor" },
+      { "ext": "markdown", "name": "Markdown Document", "role": "Editor" },
+      { "ext": "mdown", "name": "Markdown Document", "role": "Editor" },
+      { "ext": "mkd", "name": "Markdown Document", "role": "Editor" },
+      { "ext": "mdx", "name": "MDX Document", "role": "Editor" }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64", "arm64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { fuzzyFilter } from '../lib/fuzzy.js';
+import { isPrimaryMod, isWindows } from '../lib/bridge.js';
 import { icon } from './icons.js';
 
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -30,7 +31,8 @@ export function createFileTree(container, filterInput, { onOpen }) {
   function row({ depth, kind, path, name, open }) {
     const cls = kind === 'dir' ? 'tr-dir' : `tr-file${path === current ? ' current' : ''}`;
     const glyph = kind === 'dir' ? `<span class="tr-chev${open ? ' open' : ''}">${icon('chevron')}</span>${icon('folder')}` : `<span class="tr-chev"></span>${icon('file')}`;
-    const tip = kind === 'file' ? ` data-tip="${escapeHtml(path)}" data-keys="⌘-click: new tab"` : '';
+    const modHint = isWindows ? 'Ctrl-click: new window' : '⌘-click: new tab';
+    const tip = kind === 'file' ? ` data-tip="${escapeHtml(path)}" data-keys="${modHint}"` : '';
     return `<div class="tr-row ${cls}" data-kind="${kind}" data-path="${escapeHtml(path)}"${tip} style="--depth:${depth}" dir="auto">${glyph}<span class="tr-name">${escapeHtml(name)}</span></div>`;
   }
 
@@ -67,13 +69,13 @@ export function createFileTree(container, filterInput, { onOpen }) {
       expanded.has(path) ? expanded.delete(path) : expanded.add(path);
       render();
     } else {
-      onOpen(path, { newTab: e.metaKey });
+      onOpen(path, { newTab: isPrimaryMod(e) });
     }
   });
   filterInput.addEventListener('input', render);
   filterInput.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { filterInput.value = ''; render(); filterInput.blur(); }
-    if (e.key === 'Enter') { const first = container.querySelector('.tr-file'); if (first) onOpen(first.dataset.path, { newTab: e.metaKey }); }
+    if (e.key === 'Enter') { const first = container.querySelector('.tr-file'); if (first) onOpen(first.dataset.path, { newTab: isPrimaryMod(e) }); }
   });
 
   return {

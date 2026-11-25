@@ -33,11 +33,20 @@ export function fuzzyFilter(query, items, key = (x) => x, limit = 200) {
   return out.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-/** "cmd+shift+p" → "⇧⌘P" (macOS order: ⌃ ⌥ ⇧ ⌘). */
-export function formatKeys(spec) {
+/** "cmd+shift+p" → "⇧⌘P" on macOS, or "Ctrl+Shift+P" on Windows. */
+export function formatKeys(spec, win = typeof navigator !== 'undefined' && /Win/i.test(navigator.platform || '')) {
   if (!spec) return '';
   const parts = spec.split('+');
   const key = parts.pop();
+  if (win) {
+    const order = [['ctrl', 'Ctrl'], ['cmd', 'Ctrl'], ['alt', 'Alt'], ['shift', 'Shift']];
+    const mods = [];
+    for (const [m, label] of order) {
+      if (parts.includes(m) && !mods.includes(label)) mods.push(label);
+    }
+    const names = { plus: '+', tab: 'Tab', '/': '/', '-': '-' };
+    return [...mods, names[key] || key.toUpperCase()].join('+');
+  }
   const order = [['ctrl', '⌃'], ['alt', '⌥'], ['shift', '⇧'], ['cmd', '⌘']];
   const names = { plus: '+', tab: '⇥', '/': '/', '-': '−' };
   return order.filter(([m]) => parts.includes(m)).map(([, s]) => s).join('') + (names[key] || key.toUpperCase());
